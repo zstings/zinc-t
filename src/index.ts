@@ -1,11 +1,8 @@
 /**
- * 'a' 框架 - 主入口
- *
- * 使用方式：
- * ```ts
- * import { window, fs, os, events, isNative } from "a";
- * ```
+ * zinc 框架 - 主入口
  */
 
-export { isNative, window, fs, app, dialog, clipboard, os, process, events } from "./runtime/index.js";
-export { default } from "./runtime/index.js";
+export { build } from "./build/embed";
+export type { BuildResult, ValidateResult } from "./build/embed";
+export { zincPlugin } from "./vite-plugin";
+export type { ZincPluginOptions } from "./vite-plugin";

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * 'a' 框架 - CLI 工具
+ * zinc 框架 - CLI 工具
  *
  * 用法：
- *   a build [options]     构建原生可执行文件
- *   a validate <file>     验证二进制文件
- *   a dev                 开发模式（启动壳 + 监听文件变化）
+ *   zinc build [options]     构建原生可执行文件
+ *   zinc validate <file>     验证二进制文件
+ *   zinc dev                 开发模式（启动壳 + 监听文件变化）
  */
 
 import { resolve } from "path";
@@ -82,7 +82,7 @@ function cmdBuild(args: Record<string, any>) {
       verbose: args.verbose === "true" || args.v === true,
     });
   } catch (error: any) {
-    console.error(`[a] ❌ 构建失败: ${error.message}`);
+    console.error(`[zinc] ❌ 构建失败: ${error.message}`);
     process.exit(1);
   }
 }
@@ -90,17 +90,17 @@ function cmdBuild(args: Record<string, any>) {
 function cmdValidate(args: Record<string, any>) {
   const filePath = resolve(args._[0] || "");
   if (!existsSync(filePath)) {
-    console.error(`[a] 文件不存在: ${filePath}`);
+    console.error(`[zinc] 文件不存在: ${filePath}`);
     process.exit(1);
   }
 
   const result = validate(filePath);
   if (result.valid && result.info) {
-    console.log(`[a] ✅ 有效的 'a' 应用`);
-    console.log(`[a]    嵌入文件数: ${result.info.fileCount}`);
-    console.log(`[a]    资源大小: ${(result.info.originalSize / 1024).toFixed(1)} KB`);
+    console.log(`[zinc] ✅ 有效的 'zinc' 应用`);
+    console.log(`[zinc]    嵌入文件数: ${result.info.fileCount}`);
+    console.log(`[zinc]    资源大小: ${(result.info.originalSize / 1024).toFixed(1)} KB`);
   } else {
-    console.log(`[a] ❌ 不是有效的 'a' 应用`);
+    console.log(`[zinc] ❌ 不是有效的 'zinc' 应用`);
     process.exit(1);
   }
 }
@@ -110,8 +110,8 @@ function cmdDev(args: Record<string, any>) {
   const devDir = resolve(args.dir || "dist");
 
   if (!existsSync(shellPath)) {
-    console.error(`[a] 壳文件不存在: ${shellPath}`);
-    console.error(`[a] 请先编译壳: cd shell && cargo build --release`);
+    console.error(`[zinc] 壳文件不存在: ${shellPath}`);
+    console.error(`[zinc] 请先编译壳: cd shell && cargo build --release`);
     process.exit(1);
   }
 
@@ -164,12 +164,12 @@ function main() {
       break;
     default:
       console.log(`
-'a' - 超轻量级桌面应用构建库
+'zinc' - 超轻量级桌面应用构建库
 
 用法:
-  a build [options]     将前端构建产物打包为原生可执行文件
-  a validate <file>     验证二进制文件是否为有效的 'a' 应用
-  a dev [options]       开发模式（启动壳加载外部资源）
+  zinc build [options]     将前端构建产物打包为原生可执行文件
+  zinc validate <file>     验证二进制文件是否为有效的 'zinc' 应用
+  zinc dev [options]       开发模式（启动壳加载外部资源）
 
 build 选项:
   -i, --input <dir>       前端构建产物目录 (默认: dist)
@@ -193,9 +193,9 @@ dev 选项:
   --dir <dir>             资源目录 (默认: dist)
 
 示例:
-  a build -i dist -n "我的应用" --width 1200 --height 800
-  a dev --dir dist
-  a validate release/my-app.exe
+  zinc build -i dist -n "我的应用" --width 1200 --height 800
+  zinc dev --dir dist
+  zinc validate release/my-app.exe
 `);
       break;
   }

@@ -1,17 +1,17 @@
 /**
- * 'a' 框架 - Vite 插件
+ * zinc 框架 - Vite 插件
  *
  * 在 Vite 构建完成后，自动将前端资源嵌入到预编译壳中
  *
  * 用法：
  * ```ts
  * // vite.config.ts
- * import { aPlugin } from "a/vite-plugin";
+ * import { zincPlugin } from "zinc/vite-plugin";
  *
  * export default defineConfig({
  *   plugins: [
  *     vue(),
- *     aPlugin({
+ *     zincPlugin({
  *       name: "我的应用",
  *       window: { width: 1200, height: 800 },
  *     })
@@ -21,18 +21,18 @@
  */
 
 import type { Plugin, ResolvedConfig } from "vite";
-import { build, type BuildOptions } from "../build/embed";
-import { resolve, dirname } from "path";
+import { build, type BuildResult } from "../build/embed";
+import { resolve } from "path";
 import { existsSync } from "fs";
 
 /** Vite 插件配置 */
-export interface APluginOptions {
+export interface ZincPluginOptions {
   /** 应用名称 */
   name?: string;
   /** 应用图标路径 */
   icon?: string;
   /** 窗口配置 */
-  window?: BuildOptions["window"];
+  window?: any;
   /** 输出文件名（默认使用应用名） */
   outputName?: string;
   /** 输出目录（默认为 dist-release/） */
@@ -65,7 +65,7 @@ function getPrebuiltShellPath(): string {
     // 从 npm 包中查找
     resolve(__dirname, `../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(__dirname, `../../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
-    resolve(process.cwd(), `node_modules/a/prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
+    resolve(process.cwd(), `node_modules/zinc/prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(process.cwd(), `prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
   ];
 
@@ -80,12 +80,12 @@ function getPrebuiltShellPath(): string {
   );
 }
 
-export function aPlugin(options: APluginOptions = {}): Plugin {
+export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
   let config: ResolvedConfig;
   let isDev = false;
 
   return {
-    name: "a-plugin",
+    name: "zinc-plugin",
 
     config(_, env) {
       isDev = env.command === "serve";
@@ -98,14 +98,14 @@ export function aPlugin(options: APluginOptions = {}): Plugin {
     closeBundle() {
       // 开发模式下跳过
       if (isDev && options.skipInDev !== false) {
-        console.log("[a] 开发模式，跳过原生构建");
+        console.log("[zinc] 开发模式，跳过原生构建");
         return;
       }
 
       const distDir = resolve(config.root, config.build.outDir);
 
       if (!existsSync(distDir)) {
-        console.warn(`[a] 构建产物目录不存在: ${distDir}`);
+        console.warn(`[zinc] 构建产物目录不存在: ${distDir}`);
         return;
       }
 
@@ -125,7 +125,7 @@ export function aPlugin(options: APluginOptions = {}): Plugin {
           icon: options.icon,
           window: options.window,
           verbose: options.verbose,
-        });
+        }) as unknown as BuildResult;
 
         if (options.openAfterBuild) {
           const { exec } = require("child_process");
@@ -135,7 +135,7 @@ export function aPlugin(options: APluginOptions = {}): Plugin {
           exec(command);
         }
       } catch (error: any) {
-        console.error(`[a] ❌ 构建失败: ${error.message}`);
+        console.error(`[zinc] ❌ 构建失败: ${error.message}`);
         if (options.verbose) {
           console.error(error.stack);
         }

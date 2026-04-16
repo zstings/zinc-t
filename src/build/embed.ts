@@ -1,242 +1,280 @@
 /**
- * 'a' 框架 - 资源嵌入构建器
+ * zinc 框架 - 资源嵌入构建器
  *
- * 将前端构建产物嵌入到预编译的壳二进制文件中
- *
- * 嵌入格式（二进制尾部追加）：
- * [RESOURCE_MAGIC(4字节)] [索引长度(4字节)] [索引JSON] [zlib压缩数据] [资源偏移量(8字节)]
+ * 将前端构建产物嵌入到预编译壳二进制文件中
  */
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "fs";
-import { join, relative, sep, dirname } from "path";
-import { deflateSync } from "zlib";
+import { readFile, readdir, writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import { resolve, relative } from "path";
+import { createHash } from "crypto";
+import { createGzip } from "zlib";
 
-// 资源魔数 "ARES" = A Resource Embedded Shell
-const RESOURCE_MAGIC = Buffer.from([0x41, 0x52, 0x45, 0x53]);
+/** 魔数：ZINC */
+const MAGIC = Buffer.from("ZINC");
+/** 索引长度字段大小（4字节） */
+const INDEX_LENGTH_SIZE = 4;
+/** 偏移量字段大小（8字节） */
+const OFFSET_SIZE = 8;
 
-/** 资源索引：文件名 -> [偏移量, 长度] */
-export type ResourceIndex = Record<string, [number, number]>;
-
-/** 构建配置 */
-export interface BuildOptions {
-  /** 前端构建产物目录（如 vite 的 dist/） */
-  inputDir: string;
-  /** 预编译壳二进制路径 */
-  shellPath: string;
-  /** 输出文件路径 */
-  outputPath: string;
-  /** 应用名称 */
-  name?: string;
-  /** 应用图标路径 */
-  icon?: string;
-  /** 窗口配置 */
-  window?: {
-    title?: string;
-    width?: number;
-    height?: number;
-    min_width?: number;
-    min_height?: number;
-    resizable?: boolean;
-    fullscreen?: boolean;
-    maximized?: boolean;
-    transparent?: boolean;
-    decorations?: boolean;
-    always_on_top?: boolean;
-    center?: boolean;
-  };
-  /** 是否显示详细日志 */
-  verbose?: boolean;
-}
-
-/** 构建结果 */
+/** 嵌入结果 */
 export interface BuildResult {
   /** 输出文件路径 */
   outputPath: string;
-  /** 嵌入的文件数量 */
-  fileCount: number;
   /** 原始资源大小 */
   originalSize: number;
   /** 压缩后大小 */
   compressedSize: number;
-  /** 最终二进制大小 */
+  /** 最终文件大小 */
   finalSize: number;
-  /** 压缩率 */
+  /** 文件数量 */
+  fileCount: number;
+  /** 压缩比 */
   compressionRatio: number;
 }
 
-/**
- * 扫描目录，收集所有文件
- */
-function scanDir(dir: string, base: string): { files: Map<string, Buffer>; totalSize: number } {
-  const files = new Map<string, Buffer>();
-  let totalSize = 0;
+/** 验证结果 */
+export interface ValidateResult {
+  /** 是否有效 */
+  valid: boolean;
+  /** 应用信息 */
+  info?: {
+    /** 文件数量 */
+    fileCount: number;
+    /** 原始大小 */
+    originalSize: number;
+  };
+}
 
-  function walk(currentDir: string) {
-    const entries = readdirSync(currentDir, { withFileTypes: true });
+/**
+ * 扫描目录获取所有文件
+ */
+async function scanDir(
+  dir: string,
+  baseDir: string = dir
+): Promise<Map<string, { size: number; data: Buffer }>> {
+  const files = new Map<string, { size: number; data: Buffer }>();
+
+  async function scan(currentDir: string) {
+    const entries = await readdir(currentDir, { withFileTypes: true });
 
     for (const entry of entries) {
-      const fullPath = join(currentDir, entry.name);
+      const fullPath = resolve(currentDir, entry.name);
+      const relativePath = relative(baseDir, fullPath).replace(/\\/g, "/");
 
       if (entry.isDirectory()) {
-        walk(fullPath);
-      } else {
-        const relativePath = relative(base, fullPath).replace(/\\/g, "/");
-        const content = readFileSync(fullPath);
-        files.set(relativePath, content);
-        totalSize += content.length;
+        await scan(fullPath);
+      } else if (entry.isFile()) {
+        const data = await readFile(fullPath);
+        files.set(relativePath, { size: data.length, data });
       }
     }
   }
 
-  walk(dir);
-  return { files, totalSize };
+  await scan(dir);
+  return files;
 }
 
 /**
- * 生成 a.config.json（嵌入到资源中，供壳读取）
+ * 计算 SHA256 哈希
  */
-function generateAppConfig(options: BuildOptions): string {
-  const config: Record<string, unknown> = {};
-
-  if (options.name) config.name = options.name;
-  if (options.window) {
-    config.window = options.window;
-  }
-
-  return JSON.stringify(config, null, 2);
+function sha256(data: Buffer): string {
+  return createHash("sha256").update(data).digest("hex");
 }
 
 /**
- * 执行构建
+ * 压缩数据
  */
-export function build(options: BuildOptions): BuildResult {
-  const { inputDir, shellPath, outputPath, verbose = false } = options;
+async function compress(data: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const gzip = createGzip();
 
-  // 1. 读取壳二进制
-  if (verbose) console.log(`[a] 读取壳二进制: ${shellPath}`);
-  const shellBinary = readFileSync(shellPath);
+    gzip.on("data", (chunk) => chunks.push(chunk));
+    gzip.on("end", () => resolve(Buffer.concat(chunks)));
+    gzip.on("error", reject);
 
-  // 2. 扫描前端资源
-  if (verbose) console.log(`[a] 扫描资源目录: ${inputDir}`);
-  const { files, totalSize: originalSize } = scanDir(inputDir, inputDir);
+    gzip.write(data);
+    gzip.end();
+  });
+}
 
-  if (files.size === 0) {
-    throw new Error(`资源目录为空: ${inputDir}`);
-  }
-
-  if (verbose) console.log(`[a] 找到 ${files.size} 个文件，总大小 ${(originalSize / 1024).toFixed(1)} KB`);
-
-  // 3. 生成应用配置并加入资源
-  const appConfig = generateAppConfig(options);
-  files.set("a.config.json", Buffer.from(appConfig, "utf-8"));
-
-  // 4. 构建资源索引和拼接数据
-  const index: ResourceIndex = {};
-  const buffers: Buffer[] = [];
-  let offset = 0;
-
-  // 按文件名排序，确保确定性
-  const sortedFiles = Array.from(files.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-  for (const [name, content] of sortedFiles) {
-    index[name] = [offset, content.length];
-    buffers.push(content);
-    offset += content.length;
-  }
-
-  const rawData = Buffer.concat(buffers);
-
-  // 5. zlib 压缩
-  if (verbose) console.log(`[a] 压缩资源...`);
-  const compressedData = deflateSync(rawData, { level: 9 });
-
-  if (verbose) {
-    console.log(`[a] 原始: ${(rawData.length / 1024).toFixed(1)} KB`);
-    console.log(`[a] 压缩后: ${(compressedData.length / 1024).toFixed(1)} KB`);
-    console.log(`[a] 压缩率: ${((1 - compressedData.length / rawData.length) * 100).toFixed(1)}%`);
-  }
-
-  // 6. 序列化索引
-  const indexJson = JSON.stringify(index);
-  const indexBuffer = Buffer.from(indexJson, "utf-8");
-  const indexLenBuffer = Buffer.alloc(4);
-  indexLenBuffer.writeUInt32LE(indexBuffer.length);
-
-  // 7. 构建资源尾部
-  // 格式: [MAGIC(4)] [索引长度(4)] [索引JSON] [压缩数据] [偏移量(8)]
-  const resourceOffset = shellBinary.length;
-  const offsetBuffer = Buffer.alloc(8);
-  offsetBuffer.writeBigUInt64LE(BigInt(resourceOffset));
-
-  const resourceTail = Buffer.concat([
-    RESOURCE_MAGIC,     // 4 字节魔数
-    indexLenBuffer,     // 4 字节索引长度
-    indexBuffer,        // 索引 JSON
-    compressedData,     // zlib 压缩的资源数据
-    offsetBuffer,       // 8 字节偏移量（指向 MAGIC 的位置）
-  ]);
-
-  // 8. 合并壳 + 资源
-  const finalBinary = Buffer.concat([shellBinary, resourceTail]);
-
-  // 9. 确保输出目录存在
-  const outputDir = dirname(outputPath);
+/**
+ * 验证二进制文件
+ */
+export function validate(filePath: string): ValidateResult {
   try {
-    mkdirSync(outputDir, { recursive: true });
-  } catch {
-    // 目录可能已存在
-  }
+    const buffer = require("fs").readFileSync(filePath);
+    const fileSize = buffer.length;
 
-  // 10. 写入最终文件
-  writeFileSync(outputPath, finalBinary);
+    if (fileSize < OFFSET_SIZE) {
+      return { valid: false };
+    }
 
-  const result: BuildResult = {
-    outputPath,
-    fileCount: files.size,
-    originalSize,
-    compressedSize: compressedData.length,
-    finalSize: finalBinary.length,
-    compressionRatio: 1 - compressedData.length / rawData.length,
-  };
+    // 读取偏移量
+    const offsetBuffer = buffer.subarray(fileSize - OFFSET_SIZE, fileSize);
+    const offset = offsetBuffer.readBigUInt64LE();
 
-  console.log(`[a] ✅ 构建成功!`);
-  console.log(`[a]    文件数: ${result.fileCount}`);
-  console.log(`[a]    资源: ${(result.originalSize / 1024).toFixed(1)} KB → ${(result.compressedSize / 1024).toFixed(1)} KB (${(result.compressionRatio * 100).toFixed(0)}% 压缩)`);
-  console.log(`[a]    输出: ${result.outputPath} (${(result.finalSize / 1024 / 1024).toFixed(2)} MB)`);
-
-  return result;
-}
-
-/**
- * 验证二进制文件是否包含嵌入资源
- */
-export function validate(binaryPath: string): { valid: boolean; info?: { fileCount: number; originalSize: number } } {
-  try {
-    const data = readFileSync(binaryPath);
-
-    if (data.length < 8) return { valid: false };
-
-    // 读取尾部 8 字节偏移量
-    const offset = Number(data.readBigUInt64LE(data.length - 8));
+    if (offset >= fileSize) {
+      return { valid: false };
+    }
 
     // 验证魔数
-    if (data.length < offset + 4) return { valid: false };
-    const magic = data.subarray(offset, offset + 4);
-    if (!magic.equals(RESOURCE_MAGIC)) return { valid: false };
+    const magicBuffer = buffer.subarray(offset, offset + MAGIC.length);
+    if (!magicBuffer.equals(MAGIC)) {
+      return { valid: false };
+    }
+
+    // 读取索引长度
+    const indexLengthBuffer = buffer.subarray(
+      offset + MAGIC.length,
+      offset + MAGIC.length + INDEX_LENGTH_SIZE
+    );
+    const indexLength = indexLengthBuffer.readUInt32LE();
 
     // 读取索引
-    const indexLen = data.readUInt32LE(offset + 4);
-    const indexJson = data.subarray(offset + 8, offset + 8 + indexLen).toString("utf-8");
-    const index: ResourceIndex = JSON.parse(indexJson);
+    const indexStart = offset + MAGIC.length + INDEX_LENGTH_SIZE;
+    const indexEnd = indexStart + indexLength;
+    const indexBuffer = buffer.subarray(indexStart, indexEnd);
+    const index = JSON.parse(indexBuffer.toString());
+
+    // 计算资源大小
+    let totalSize = 0;
+    for (const [_, offsets] of Object.entries(index)) {
+      const [start, end] = offsets as [number, number];
+      totalSize += end - start;
+    }
 
     return {
       valid: true,
       info: {
         fileCount: Object.keys(index).length,
-        originalSize: Object.values(index).reduce((sum, [, len]) => sum + len, 0),
+        originalSize: totalSize,
       },
     };
   } catch {
     return { valid: false };
   }
+}
+
+/**
+ * 构建嵌入文件
+ */
+export async function build(options: {
+  /** 输入目录 */
+  inputDir: string;
+  /** 壳二进制路径 */
+  shellPath: string;
+  /** 输出路径 */
+  outputPath: string;
+  /** 应用名称 */
+  name?: string;
+  /** 图标路径 */
+  icon?: string;
+  /** 窗口配置 */
+  window?: any;
+  /** 是否显示详细日志 */
+  verbose?: boolean;
+}): Promise<BuildResult> {
+  const {
+    inputDir,
+    shellPath,
+    outputPath,
+    verbose = false,
+  } = options;
+
+  if (verbose) console.log(`[zinc] 读取壳二进制: ${shellPath}`);
+  const shellBuffer = await readFile(shellPath);
+
+  if (verbose) console.log(`[zinc] 扫描资源目录: ${inputDir}`);
+  const files = await scanDir(inputDir);
+
+  // 按文件名排序以确保一致性
+  const sortedFiles = Array.from(files.entries()).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+
+  if (verbose)
+    console.log(
+      `[zinc] 找到 ${files.size} 个文件，总大小 ${(
+        files.size /
+        1024
+      ).toFixed(1)} KB`
+    );
+
+  // 生成索引
+  const index: Record<string, [number, number]> = {};
+  let currentOffset = 0;
+
+  for (const [filePath, { size }] of sortedFiles) {
+    index[filePath] = [currentOffset, currentOffset + size];
+    currentOffset += size;
+  }
+
+  // 合并所有文件数据
+  if (verbose) console.log(`[zinc] 压缩资源...`);
+  const rawData = Buffer.concat(sortedFiles.map(([_, { data }]) => data));
+  const compressedData = await compress(rawData);
+
+  if (verbose) {
+    console.log(`[zinc] 原始: ${(rawData.length / 1024).toFixed(1)} KB`);
+    console.log(`[zinc] 压缩后: ${(compressedData.length / 1024).toFixed(1)} KB`);
+    console.log(
+      `[zinc] 压缩率: ${((1 - compressedData.length / rawData.length) * 100).toFixed(1)}%`
+    );
+  }
+
+  // 构建资源尾部
+  const indexJson = JSON.stringify(index);
+  const indexBuffer = Buffer.from(indexJson);
+
+  const indexLengthBuffer = Buffer.alloc(INDEX_LENGTH_SIZE);
+  indexLengthBuffer.writeUInt32LE(indexBuffer.length);
+
+  const offsetBuffer = Buffer.alloc(OFFSET_SIZE);
+  const dataStartOffset =
+    shellBuffer.length +
+    MAGIC.length +
+    INDEX_LENGTH_SIZE +
+    indexBuffer.length +
+    compressedData.length;
+  offsetBuffer.writeBigUInt64LE(BigInt(dataStartOffset));
+
+  const tail = Buffer.concat([
+    MAGIC,
+    indexLengthBuffer,
+    indexBuffer,
+    compressedData,
+    offsetBuffer,
+  ]);
+
+  // 确保输出目录存在
+  const outputDir = resolve(outputPath, "..");
+  if (!existsSync(outputDir)) {
+    await mkdir(outputDir, { recursive: true });
+  }
+
+  // 写入输出文件
+  await writeFile(outputPath, Buffer.concat([shellBuffer, tail]));
+
+  console.log(`[zinc] ✅ 构建成功!`);
+  console.log(`[zinc]    文件数: ${sortedFiles.length}`);
+  console.log(
+    `[zinc]    资源: ${(rawData.length / 1024).toFixed(1)} KB → ${(
+      compressedData.length /
+      1024
+    ).toFixed(1)} KB (${((1 - compressedData.length / rawData.length) * 100).toFixed(0)}% 压缩)`
+  );
+  console.log(
+    `[zinc]    输出: ${outputPath} (${(shellBuffer.length / 1024 / 1024).toFixed(2)} MB)`
+  );
+
+  return {
+    outputPath,
+    originalSize: rawData.length,
+    compressedSize: compressedData.length,
+    finalSize: shellBuffer.length + tail.length,
+    fileCount: sortedFiles.length,
+    compressionRatio: 1 - compressedData.length / rawData.length,
+  };
 }
