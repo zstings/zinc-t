@@ -3,4 +3,5 @@ dist/
 release/
 .DS_Store
 *.log
+prebuilt/win32-x64/WebView2/
 !prebuilt/win32-x64/shell.exe

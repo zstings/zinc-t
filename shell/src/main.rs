@@ -215,6 +215,7 @@ fn main() {
         WebViewBuilder::new()
             .with_initialization_script(init_script)
             .with_url(&initial_url)
+            .with_devtools(true)
             .with_ipc_handler(move |message| {
                 if let Ok(webview_guard) = webview_arc_clone.lock() {
                     if let Some(webview) = &*webview_guard {
@@ -228,6 +229,7 @@ fn main() {
         WebViewBuilder::new()
             .with_initialization_script(init_script)
             .with_url(&initial_url)
+            .with_devtools(dev_mode)
             .with_custom_protocol("zinc".to_string(), move |request, _| {
                 let path = request.trim_start_matches("zinc://").trim_start_matches('/');
                 let path = if path.is_empty() { "index.html" } else { path };

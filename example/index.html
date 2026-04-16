@@ -42,9 +42,12 @@
 <body>
   <h1>🎉 Zinc 应用</h1>
   <p>这是一个使用 Zinc 构建的原生桌面应用</p>
-  <button onclick="testZincAPI()">测试 Zinc API</button>
+  <button id="test-btn">测试 Zinc API</button>
 
   <script type="module">
+    // 监听按钮点击事件
+    document.getElementById('test-btn').addEventListener('click', testZincAPI);
+    
     // 测试 Zinc API
     async function testZincAPI() {
       try {
