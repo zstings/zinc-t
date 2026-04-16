@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zinc Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <h1>🎉 Zinc 应用</h1>
+  <p>这是一个使用 Zinc 构建的原生桌面应用</p>
+  <button onclick="testZincAPI()">测试 Zinc API</button>
+
+  <script type="module">
+    // 测试 Zinc API
+    async function testZincAPI() {
+      try {
+        // 测试 os API
+        const osInfo = await window.__ZINC__.call('os.platform', []);
+        console.log('OS:', osInfo);
+        
+        // 测试 process API
+        const pid = await window.__ZINC__.call('process.pid', []);
+        console.log('PID:', pid);
+        
+        alert(`Zinc API 测试成功！\nOS: ${osInfo}\nPID: ${pid}`);
+      } catch (error) {
+        console.error('API 测试失败:', error);
+        alert('API 测试失败: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

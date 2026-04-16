@@ -1,0 +1,19 @@
+{
+  "name": "zinc-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "native": "zinc build -i dist -n \"Zinc Demo\" --title \"Zinc App Demo\" --width 1200 --height 800 -v",
+    "native:dev": "zinc dev --dir dist"
+  },
+  "dependencies": {
+    "zinc": "file:.."
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
