@@ -21,9 +21,15 @@
  */
 
 import type { Plugin, ResolvedConfig } from "vite";
-import { build, type BuildResult } from "../build/embed";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
 import { existsSync } from "fs";
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+
+/** 获取当前文件的目录 */
+function getCurrentDir(): string {
+  return dirname(fileURLToPath(import.meta.url));
+}
 
 /** Vite 插件配置 */
 export interface ZincPluginOptions {
@@ -51,6 +57,7 @@ export interface ZincPluginOptions {
 function getPrebuiltShellPath(): string {
   const platform = process.platform;
   const arch = process.arch;
+  const currentDir = getCurrentDir();
 
   const platformMap: Record<string, string> = {
     win32: "win32-x64",
@@ -62,9 +69,8 @@ function getPrebuiltShellPath(): string {
 
   // 尝试多个可能的路径
   const possiblePaths = [
-    // 从 npm 包中查找
-    resolve(__dirname, `../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
-    resolve(__dirname, `../../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
+    resolve(currentDir, `../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
+    resolve(currentDir, `../../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(process.cwd(), `node_modules/zinc/prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(process.cwd(), `prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
   ];
@@ -78,6 +84,22 @@ function getPrebuiltShellPath(): string {
     `已尝试以下路径:\n${possiblePaths.map((p) => `  - ${p}`).join("\n")}\n\n` +
     `请确保已安装对应平台的预编译壳，或使用 shellPath 选项指定路径。`
   );
+}
+
+/** 动态加载 embed 模块 */
+async function loadEmbedModule() {
+  const require = createRequire(import.meta.url);
+  const currentDir = getCurrentDir();
+  const embedPath = resolve(currentDir, "../build/embed.js");
+  if (existsSync(embedPath)) {
+    return require(embedPath);
+  }
+  // 备用路径
+  const fallbackPath = resolve(currentDir, "../../dist/build/embed.js");
+  if (existsSync(fallbackPath)) {
+    return require(fallbackPath);
+  }
+  throw new Error(`找不到 embed 模块: ${embedPath}`);
 }
 
 export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
@@ -95,7 +117,7 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
       config = resolvedConfig;
     },
 
-    closeBundle() {
+    async closeBundle() {
       // 开发模式下跳过
       if (isDev && options.skipInDev !== false) {
         console.log("[zinc] 开发模式，跳过原生构建");
@@ -117,6 +139,7 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
         const outputDir = options.outputDir || resolve(config.root, "release");
         const outputPath = resolve(outputDir, outputName);
 
+        const { build } = await loadEmbedModule();
         const result = build({
           inputDir: distDir,
           shellPath,
@@ -125,7 +148,7 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           icon: options.icon,
           window: options.window,
           verbose: options.verbose,
-        }) as unknown as BuildResult;
+        });
 
         if (options.openAfterBuild) {
           const { exec } = require("child_process");

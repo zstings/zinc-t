@@ -6,12 +6,13 @@
  * 用法：
  *   zinc build [options]     构建原生可执行文件
  *   zinc validate <file>     验证二进制文件
- *   zinc dev                 开发模式（启动壳 + 监听文件变化）
+ *   zinc dev                 开发模式（启动 Vite + 壳加载开发服务器）
  */
 
 import { resolve } from "path";
 import { existsSync } from "fs";
 import { fileURLToPath } from "url";
+import { spawn, ChildProcess } from "child_process";
 import { build, validate } from "./build/embed.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +45,92 @@ function parseArgs(args: string[]): Record<string, any> {
   }
 
   return result;
+}
+
+// ============================================================
+// Vite 开发服务器管理
+// ============================================================
+
+function parseVitePort(output: string): number | null {
+  // Vite 输出格式: "  ➜  Local:   http://localhost:5173/"
+  const localMatch = output.match(/localhost:(\d+)/);
+  if (localMatch) {
+    return parseInt(localMatch[1]);
+  }
+
+  // 备用匹配: "Local: http://127.0.0.1:5173/"
+  const ipMatch = output.match(/127\.0\.0\.1:(\d+)/);
+  if (ipMatch) {
+    return parseInt(ipMatch[1]);
+  }
+
+  return null;
+}
+
+function isViteReady(output: string): boolean {
+  // Vite 输出格式: "VITE v8.0.8  ready in 264 ms"
+  return output.includes("ready in") || output.includes(" ready in ") || output.includes("ready,");
+}
+
+async function startViteDevServer(rootDir: string): Promise<{ port: number; child: ChildProcess }> {
+  return new Promise((resolve, reject) => {
+    console.log("[zinc] 启动 Vite 开发服务器...");
+
+    const vite = spawn(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["vite", "--port", "0"],
+      {
+        cwd: rootDir,
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: true,
+      }
+    );
+
+    let outputBuffer = "";
+    let port: number | null = null;
+    let resolved = false;
+
+    vite.stdout?.on("data", (data: Buffer) => {
+      const text = data.toString();
+      outputBuffer += text;
+      process.stdout.write(text);
+
+      // 尝试解析端口
+      if (!port) {
+        port = parseVitePort(outputBuffer);
+      }
+
+      // 检查是否完全启动
+      if (port && isViteReady(outputBuffer) && !resolved) {
+        resolved = true;
+        console.log(`[zinc] Vite 开发服务器已启动: http://localhost:${port}`);
+        resolve({ port, child: vite });
+      }
+    });
+
+    vite.stderr?.on("data", (data: Buffer) => {
+      process.stderr.write(data);
+    });
+
+    vite.on("error", (error) => {
+      reject(error);
+    });
+
+    // 超时处理：5秒内没有获取到端口则使用默认
+    setTimeout(() => {
+      if (!resolved) {
+        const detectedPort = parseVitePort(outputBuffer);
+        if (detectedPort) {
+          port = detectedPort;
+          resolve({ port: detectedPort, child: vite });
+        } else {
+          // 使用 Vite 默认端口
+          console.log("[zinc] 无法自动检测端口，使用默认端口 5173");
+          resolve({ port: 5173, child: vite });
+        }
+      }
+    }, 5000);
+  });
 }
 
 // ============================================================
@@ -105,9 +192,10 @@ function cmdValidate(args: Record<string, any>) {
   }
 }
 
-function cmdDev(args: Record<string, any>) {
+async function cmdDev(args: Record<string, any>) {
   const shellPath = resolve(args.shell || args.s || getDefaultShellPath());
-  const devDir = resolve(args.dir || "dist");
+  // devDir 是项目根目录，Vite 会在该目录下运行
+  const devDir = resolve(args.dir || ".");
 
   if (!existsSync(shellPath)) {
     console.error(`[zinc] 壳文件不存在: ${shellPath}`);
@@ -115,14 +203,47 @@ function cmdDev(args: Record<string, any>) {
     process.exit(1);
   }
 
-  const { spawn } = require("child_process");
-  const child = spawn(shellPath, ["--dev", "--dev-dir", devDir], {
-    stdio: "inherit",
-  });
+  if (!existsSync(devDir)) {
+    console.error(`[zinc] 项目目录不存在: ${devDir}`);
+    process.exit(1);
+  }
 
-  child.on("close", (code: number) => {
-    process.exit(code);
-  });
+  try {
+    // 启动 Vite 开发服务器
+    const { port, child: viteChild } = await startViteDevServer(devDir);
+
+    // 启动壳，加载 Vite 开发服务器
+    const devUrl = `http://localhost:${port}`;
+    console.log(`[zinc] 启动壳，加载: ${devUrl}`);
+
+    const shellChild = spawn(shellPath, ["--dev-url", devUrl], {
+      stdio: "inherit",
+      shell: true,
+    });
+
+    // 处理关闭
+    const cleanup = () => {
+      console.log("[zinc] 关闭 Vite 开发服务器...");
+      viteChild.kill();
+      shellChild.kill();
+    };
+
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
+
+    shellChild.on("close", (code: number) => {
+      cleanup();
+      process.exit(code);
+    });
+
+    viteChild.on("close", (code: number) => {
+      shellChild.kill();
+      process.exit(code);
+    });
+  } catch (error: any) {
+    console.error(`[zinc] ❌ 开发模式启动失败: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 function getDefaultShellPath(): string {
@@ -169,7 +290,7 @@ function main() {
 用法:
   zinc build [options]     将前端构建产物打包为原生可执行文件
   zinc validate <file>     验证二进制文件是否为有效的 'zinc' 应用
-  zinc dev [options]       开发模式（启动壳加载外部资源）
+  zinc dev [options]       开发模式（启动 Vite + 壳加载开发服务器）
 
 build 选项:
   -i, --input <dir>       前端构建产物目录 (默认: dist)
@@ -190,11 +311,11 @@ build 选项:
 
 dev 选项:
   -s, --shell <path>      壳二进制路径
-  --dir <dir>             资源目录 (默认: dist)
+  --dir <dir>             项目目录 (默认: .)
 
 示例:
   zinc build -i dist -n "我的应用" --width 1200 --height 800
-  zinc dev --dir dist
+  zinc dev --dir .
   zinc validate release/my-app.exe
 `);
       break;

@@ -102,6 +102,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let mut dev_mode = false;
     let mut dev_dir = None;
+    let mut dev_url = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -113,6 +114,15 @@ fn main() {
             "--dev-dir" => {
                 if i + 1 < args.len() {
                     dev_dir = Some(PathBuf::from(&args[i + 1]));
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            "--dev-url" => {
+                if i + 1 < args.len() {
+                    dev_url = Some(args[i + 1].clone());
+                    dev_mode = true;
                     i += 2;
                 } else {
                     i += 1;
@@ -195,58 +205,87 @@ fn main() {
     let webview_arc = Arc::new(Mutex::new(None));
     let webview_arc_clone = webview_arc.clone();
 
-    let webview = WebViewBuilder::new()
-        .with_initialization_script(init_script)
-        .with_url("zinc://index.html")
-        .with_custom_protocol("zinc".to_string(), move |request, _| {
-            let path = request.trim_start_matches("zinc://").trim_start_matches('/');
-            let path = if path.is_empty() { "index.html" } else { path };
+    let initial_url = if let Some(ref url) = dev_url {
+        url.clone()
+    } else {
+        "zinc://index.html".to_string()
+    };
 
-            if dev_mode {
-                if let Some(ref dev_dir) = dev_dir {
-                    let file_path = dev_dir.join(path);
-                    if let Ok(mut file) = File::open(file_path) {
-                        let mut content = Vec::new();
-                        if file.read_to_end(&mut content).is_ok() {
-                            let mime = mime_guess::from_path(path)
-                                .first_or_text_plain()
-                                .to_string();
-                            let body: std::borrow::Cow<[u8]> = content.into();
-                            return Response::builder()
-                                .header("Content-Type", mime)
-                                .body(body)
-                                .unwrap();
-                        }
+    let webview = if dev_url.is_some() {
+        WebViewBuilder::new()
+            .with_initialization_script(init_script)
+            .with_url(&initial_url)
+            .with_ipc_handler(move |message| {
+                if let Ok(webview_guard) = webview_arc_clone.lock() {
+                    if let Some(webview) = &*webview_guard {
+                        handle_ipc_message(webview, message);
                     }
                 }
-            } else if let Some(ref resources) = resources {
-                if let Some(content) = resources.get(path) {
-                    let mime = mime_guess::from_path(path)
-                        .first_or_text_plain()
-                        .to_string();
-                    let body: std::borrow::Cow<[u8]> = content.to_vec().into();
-                    return Response::builder()
-                        .header("Content-Type", mime)
-                        .body(body)
-                        .unwrap();
-                }
-            }
+            })
+            .build(&window)
+            .unwrap()
+    } else {
+        WebViewBuilder::new()
+            .with_initialization_script(init_script)
+            .with_url(&initial_url)
+            .with_custom_protocol("zinc".to_string(), move |request, _| {
+                let path = request.trim_start_matches("zinc://").trim_start_matches('/');
+                let path = if path.is_empty() { "index.html" } else { path };
 
-            let body: std::borrow::Cow<[u8]> = Vec::from("Not Found").into();
-            Response::builder()
-                .status(404)
-                .body(body)
-                .unwrap()
-        })
-        .with_ipc_handler(move |message| {
-            if let Ok(webview_guard) = webview_arc_clone.lock() {
-                if let Some(webview) = &*webview_guard {
-                    handle_ipc_message(webview, message);
+                if dev_mode {
+                    if let Some(ref dev_dir) = dev_dir {
+                        let dev_dir_abs = if dev_dir.is_absolute() {
+                            dev_dir.clone()
+                        } else {
+                            match std::env::current_dir() {
+                                Ok(cwd) => cwd.join(dev_dir),
+                                Err(_) => dev_dir.clone(),
+                            }
+                        };
+                        let file_path = dev_dir_abs.join(path);
+                        if let Ok(mut file) = File::open(file_path) {
+                            let mut content = Vec::new();
+                            if file.read_to_end(&mut content).is_ok() {
+                                let mime = mime_guess::from_path(path)
+                                    .first_or_text_plain()
+                                    .to_string();
+                                let body: std::borrow::Cow<[u8]> = content.into();
+                                return Response::builder()
+                                    .header("Content-Type", mime)
+                                    .body(body)
+                                    .unwrap();
+                            }
+                        }
+                    }
+                } else if let Some(ref resources) = resources {
+                    if let Some(content) = resources.get(path) {
+                        let mime = mime_guess::from_path(path)
+                            .first_or_text_plain()
+                            .to_string();
+                        let body: std::borrow::Cow<[u8]> = content.to_vec().into();
+                        return Response::builder()
+                            .header("Content-Type", mime)
+                            .body(body)
+                            .unwrap();
+                    }
                 }
-            }
-        })
-        .build(&window)
-        .unwrap();
+
+                let body: std::borrow::Cow<[u8]> = Vec::from("Not Found").into();
+                Response::builder()
+                    .status(404)
+                    .body(body)
+                    .unwrap()
+            })
+            .with_ipc_handler(move |message| {
+                if let Ok(webview_guard) = webview_arc_clone.lock() {
+                    if let Some(webview) = &*webview_guard {
+                        handle_ipc_message(webview, message);
+                    }
+                }
+            })
+            .build(&window)
+            .unwrap()
+    };
 
     *webview_arc.lock().unwrap() = Some(webview);
     let webview = webview_arc;
