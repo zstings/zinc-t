@@ -48,12 +48,17 @@ function parseArgs(args: string[]): Record<string, any> {
 // Vite 开发服务器管理
 // ============================================================
 
-function parsePluginMessage(output: string): { port?: number; outputDir?: string } | null {
-  const result: { port?: number; outputDir?: string } = {};
+function parsePluginMessage(output: string): { port?: number; outputDir?: string; identifier?: string } | null {
+  const result: { port?: number; outputDir?: string; identifier?: string } = {};
 
   const portMatch = output.match(/\[zinc:dev\] SERVER_PORT=(\d+)/);
   if (portMatch) {
     result.port = parseInt(portMatch[1]);
+  }
+
+  const identifierMatch = output.match(/\[zinc:dev\] IDENTIFIER=(.+)/);
+  if (identifierMatch) {
+    result.identifier = identifierMatch[1].trim();
   }
 
   const outputMatch = output.match(/\[zinc:build\] OUTPUT_DIR=(.+)/);
@@ -68,7 +73,7 @@ function isViteReady(output: string): boolean {
   return output.includes("ready in") || output.includes(" ready in ") || output.includes("ready,");
 }
 
-async function startViteDevServer(rootDir: string): Promise<{ port: number; child: ChildProcess }> {
+async function startViteDevServer(rootDir: string): Promise<{ port: number; identifier?: string; child: ChildProcess }> {
   return new Promise((resolve, reject) => {
     console.log("[zinc] 启动 Vite 开发服务器...");
 
@@ -79,6 +84,7 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
 
     let outputBuffer = "";
     let port: number | null = null;
+    let identifier: string | undefined;
     let resolved = false;
 
     vite.stdout?.on("data", (data: Buffer) => {
@@ -90,11 +96,14 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
       if (pluginInfo?.port) {
         port = pluginInfo.port;
       }
+      if (pluginInfo?.identifier) {
+        identifier = pluginInfo.identifier;
+      }
 
       if (port && isViteReady(outputBuffer) && !resolved) {
         resolved = true;
         console.log(`[zinc] Vite 开发服务器已启动: http://localhost:${port}`);
-        resolve({ port, child: vite });
+        resolve({ port, identifier, child: vite });
       }
     });
 
@@ -115,10 +124,10 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
     setTimeout(() => {
       if (!resolved) {
         if (port) {
-          resolve({ port, child: vite });
+          resolve({ port, identifier, child: vite });
         } else {
           console.log("[zinc] 无法获取端口，使用默认端口 5173");
-          resolve({ port: 5173, child: vite });
+          resolve({ port: 5173, identifier, child: vite });
         }
       }
     }, 5000);
@@ -229,7 +238,7 @@ async function cmdDev(args: Record<string, any>) {
 
   try {
     // 启动 Vite 开发服务器
-    const { port, child: vite } = await startViteDevServer(devDir);
+    const { port, identifier, child: vite } = await startViteDevServer(devDir);
     viteChild = vite;
 
     // 启动壳
@@ -238,7 +247,9 @@ async function cmdDev(args: Record<string, any>) {
     const devUrl = `http://localhost:${port}`;
     console.log(`[zinc] 启动壳，加载: ${devUrl}`);
 
-    const shell = spawn(shellPath, ["--dev-url", devUrl], {
+    const shellArgs = ["--dev-url", devUrl];
+    if (identifier) shellArgs.push("--identifier", identifier);
+    const shell = spawn(shellPath, shellArgs, {
       stdio: "ignore",
       detached: true,
     });

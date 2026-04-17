@@ -169,6 +169,8 @@ export async function build(options: {
   outputPath: string;
   /** 应用名称 */
   name?: string;
+  /** 应用标识符，用于存储用户数据目录 */
+  identifier?: string;
   /** 图标路径 */
   icon?: string;
   /** 窗口配置 */
@@ -202,18 +204,31 @@ export async function build(options: {
       ).toFixed(1)} KB`
     );
 
-  // 生成索引
-  const index: Record<string, [number, number]> = {};
+  // 生成索引，特殊 key 存储应用配置
+  const index: Record<string, any> = {};
   let currentOffset = 0;
+  const rawChunks: Buffer[] = [];
 
-  for (const [filePath, { size }] of sortedFiles) {
+  for (const [filePath, { size, data }] of sortedFiles) {
     index[filePath] = [currentOffset, currentOffset + size];
     currentOffset += size;
+    rawChunks.push(data);
   }
+
+  if (options.identifier) index["__zinc_identifier__"] = options.identifier;
+  if (options.name) index["__zinc_name__"] = options.name;
+
+  const indexJson = JSON.stringify(index);
+  const indexBuffer = Buffer.from(indexJson);
+  const indexLengthBuffer = Buffer.alloc(INDEX_LENGTH_SIZE);
+  indexLengthBuffer.writeUInt32LE(indexBuffer.length);
+
+  const offsetBuffer = Buffer.alloc(OFFSET_SIZE);
+  offsetBuffer.writeBigUInt64LE(BigInt(shellBuffer.length));
 
   // 合并所有文件数据
   if (verbose) console.log(`[zinc] 压缩资源...`);
-  const rawData = Buffer.concat(sortedFiles.map(([_, { data }]) => data));
+  const rawData = Buffer.concat(rawChunks);
   const compressedData = await compress(rawData);
 
   if (verbose) {
@@ -225,16 +240,6 @@ export async function build(options: {
   }
 
   // 构建资源尾部
-  const indexJson = JSON.stringify(index);
-  const indexBuffer = Buffer.from(indexJson);
-
-  const indexLengthBuffer = Buffer.alloc(INDEX_LENGTH_SIZE);
-  indexLengthBuffer.writeUInt32LE(indexBuffer.length);
-
-  const offsetBuffer = Buffer.alloc(OFFSET_SIZE);
-  const dataStartOffset = shellBuffer.length;
-  offsetBuffer.writeBigUInt64LE(BigInt(dataStartOffset));
-
   const tail = Buffer.concat([
     MAGIC,
     indexLengthBuffer,

@@ -13,7 +13,7 @@ use tao::event_loop::{EventLoop};
 use tao::window::{WindowBuilder};
 use tao::dpi::LogicalSize;
 use wry::http::Response;
-use wry::{WebView, WebViewBuilder};
+use wry::{WebView, WebViewBuilder, WebContext};
 
 const MAGIC: &[u8] = b"ZINC";
 const MAGIC_SIZE: usize = 4;
@@ -67,7 +67,7 @@ impl Resources {
         file.read_exact(&mut index_json)?;
         let index: serde_json::Map<String, Value> = serde_json::from_slice(&index_json)?;
 
-        // 计算压缩数据的长度：文件大小 - 偏移量 - 魔数大小 - 索引长度大小 - 索引长度 - 偏移量大小
+        // 压缩数据长度 = 文件大小 - offset - MAGIC - indexLen字段 - index - offset字段
         let compressed_data_length = file_size - offset - MAGIC_SIZE as u64 - INDEX_LENGTH_SIZE as u64 - index_length as u64 - OFFSET_SIZE as u64;
         let mut compressed_data = vec![0u8; compressed_data_length as usize];
         file.read_exact(&mut compressed_data)?;
@@ -103,6 +103,10 @@ impl Resources {
     pub fn keys(&self) -> impl Iterator<Item = &String> {
         self.index.keys()
     }
+
+    pub fn get_meta(&self, key: &str) -> Option<&str> {
+        self.index.get(key).and_then(|v| v.as_str())
+    }
 }
 
 fn main() {
@@ -110,6 +114,7 @@ fn main() {
     let mut dev_mode = false;
     let mut dev_dir = None;
     let mut dev_url = None;
+    let mut cli_identifier: Option<String> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -135,18 +140,19 @@ fn main() {
                     i += 1;
                 }
             }
+            "--identifier" => {
+                if i + 1 < args.len() {
+                    cli_identifier = Some(args[i + 1].clone());
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
             _ => {
                 i += 1;
             }
         }
     }
-
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("Zinc App")
-        .with_inner_size(LogicalSize::new(800, 600))
-        .build(&event_loop)
-        .unwrap();
 
     let mut resources = None;
     if !dev_mode {
@@ -163,6 +169,31 @@ fn main() {
             eprintln!("Failed to get current exe path");
         }
     }
+
+    // cli 参数优先，否则从嵌入资源中读取
+    let identifier = cli_identifier.or_else(|| {
+        resources.as_ref().and_then(|r| r.get_meta("__zinc_identifier__")).map(|s| s.to_string())
+    });
+
+    #[cfg(target_os = "windows")]
+    let mut web_context = if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+        let app_id = identifier.unwrap_or_else(|| "com.zinc.app".to_string());
+        let data_dir = PathBuf::from(local_appdata).join(app_id).join("WebView2");
+        std::fs::create_dir_all(&data_dir).ok();
+        WebContext::new(Some(data_dir))
+    } else {
+        WebContext::new(None)
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mut web_context = WebContext::new(None);
+
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+        .with_title("Zinc App")
+        .with_inner_size(LogicalSize::new(800, 600))
+        .build(&event_loop)
+        .unwrap();
 
     let init_script = r#"
     window.__ZINC__ = {
@@ -226,7 +257,7 @@ fn main() {
     };
 
     let webview = if dev_url.is_some() {
-        WebViewBuilder::new()
+        WebViewBuilder::new_with_web_context(&mut web_context)
             .with_initialization_script(init_script)
             .with_url(&initial_url)
             .with_devtools(true)
@@ -242,7 +273,7 @@ fn main() {
     } else {
         let resources_clone = resources.clone();
         
-        WebViewBuilder::new()
+        WebViewBuilder::new_with_web_context(&mut web_context)
             .with_initialization_script(init_script)
             .with_url(&initial_url)
             .with_devtools(dev_mode)

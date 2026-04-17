@@ -35,6 +35,8 @@ function getCurrentDir(): string {
 export interface ZincPluginOptions {
   /** 应用名称 */
   name?: string;
+  /** 应用标识符，用于存储用户数据目录 (e.g. com.example.myapp) */
+  identifier?: string;
   /** 应用图标路径 */
   icon?: string;
   /** 窗口配置 */
@@ -124,6 +126,9 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           if (address && typeof address === 'object' && 'port' in address) {
             const port = address.port;
             console.log(`[zinc:dev] SERVER_PORT=${port}`);
+            if (options.identifier) {
+              console.log(`[zinc:dev] IDENTIFIER=${options.identifier}`);
+            }
           }
         });
       }
@@ -157,6 +162,7 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           shellPath,
           outputPath,
           name: options.name,
+          identifier: options.identifier,
           icon: options.icon,
           window: options.window,
           verbose: options.verbose,

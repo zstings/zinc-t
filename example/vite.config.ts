@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [
     zincPlugin({
       name: "Zinc Demo",
+      identifier: "com.zinc.zinc-demo",
       window: {
         title: "Zinc App Demo",
         width: 1200,
