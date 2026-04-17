@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};

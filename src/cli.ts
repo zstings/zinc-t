@@ -9,17 +9,14 @@
  *   zinc dev                 开发模式（启动 Vite + 壳加载开发服务器）
  */
 
-import { resolve } from "path";
+import { resolve, dirname } from "path";
 import { existsSync } from "fs";
 import { fileURLToPath } from "url";
-import { spawn, ChildProcess } from "child_process";
+import { spawn } from "child_process";
+import type { ChildProcess } from "child_process";
 import { build, validate } from "./build/embed.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function dirname(path: string): string {
-  return resolve(path, "..");
-}
 
 // ============================================================
 // CLI 参数解析
@@ -75,22 +72,11 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
   return new Promise((resolve, reject) => {
     console.log("[zinc] 启动 Vite 开发服务器...");
 
-    let vite: ChildProcess;
-    if (process.platform === "win32") {
-      // Windows 上使用 shell: true 来确保 npx 正确执行
-      vite = spawn("npx", ["vite"], {
-        cwd: rootDir,
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: true,
-      });
-    } else {
-      // 非 Windows 平台可以直接启动
-      vite = spawn("npx", ["vite"], {
-        cwd: rootDir,
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: false,
-      });
-    }
+    const vite = spawn("npx", ["vite"], {
+      cwd: rootDir,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
 
     let outputBuffer = "";
     let port: number | null = null;
@@ -201,7 +187,6 @@ function cmdValidate(args: Record<string, any>) {
 
 async function cmdDev(args: Record<string, any>) {
   const shellPath = resolve(args.shell || args.s || getDefaultShellPath());
-  // devDir 是项目根目录，Vite 会在该目录下运行
   const devDir = resolve(args.dir || ".");
 
   if (!existsSync(shellPath)) {
@@ -217,116 +202,78 @@ async function cmdDev(args: Record<string, any>) {
 
   let viteChild: ChildProcess | null = null;
   let shellChild: ChildProcess | null = null;
+  let exiting = false;
+
+  // 杀掉 vite 子进程树（vite 的 stdio 是 pipe，不会自动收到 Ctrl+C）
+  function killVite() {
+    if (!viteChild) return;
+    try {
+      // vite 是通过 shell: true 启动的，需要杀掉整个进程树
+      if (process.platform === "win32") {
+        spawn("taskkill", ["/F", "/T", "/PID", String(viteChild.pid)], { stdio: "ignore" });
+      } else {
+        viteChild.kill("SIGTERM");
+      }
+    } catch {
+      // 忽略
+    }
+    viteChild = null;
+  }
+
+  // 优雅退出
+  function exit(code: number) {
+    if (exiting) return;
+    exiting = true;
+    killVite();
+    process.exit(code);
+  }
 
   try {
     // 启动 Vite 开发服务器
     const { port, child: vite } = await startViteDevServer(devDir);
     viteChild = vite;
 
-    // 启动壳，加载 Vite 开发服务器
+    // 启动壳
+    // Windows 上 GUI 程序不能 inherit stdio，否则会破坏控制台模式
+    // 用 detached: true 让壳独立运行，stdio: "ignore" 不共享终端
     const devUrl = `http://localhost:${port}`;
     console.log(`[zinc] 启动壳，加载: ${devUrl}`);
 
-    let shell: ChildProcess;
-    if (process.platform === "win32") {
-      // Windows 上使用 shell: true
-      shell = spawn(shellPath, ["--dev-url", devUrl], {
-        stdio: "inherit",
-        shell: true,
-      });
-    } else {
-      // 非 Windows 平台
-      shell = spawn(shellPath, ["--dev-url", devUrl], {
-        stdio: "inherit",
-        shell: false,
-      });
-    }
+    const shell = spawn(shellPath, ["--dev-url", devUrl], {
+      stdio: "ignore",
+      detached: true,
+    });
     shellChild = shell;
+    // detached 模式下不会自动等待子进程，需要 unref 让 Node 不等它
+    shell.unref();
 
-    // 处理关闭
-    const cleanup = (signal?: string) => {
-      if (signal) {
-        console.log(`[zinc] 收到 ${signal} 信号，正在关闭...`);
-      } else {
-        console.log("[zinc] 正在关闭...");
+    // Ctrl+C 时杀 vite + 壳，然后退出
+    process.on("SIGINT", () => {
+      killVite();
+      if (shellChild && !shellChild.killed) {
+        shellChild.kill();
       }
-      
-      if (viteChild) {
-        console.log("[zinc] 关闭 Vite 开发服务器...");
-        if (process.platform === "win32") {
-          // Windows 上使用 taskkill 命令强制终止进程树
-          try {
-            spawn("taskkill", ["/F", "/T", "/PID", viteChild.pid?.toString() || ""], {
-              stdio: "inherit",
-            });
-          } catch (error) {
-            console.warn("[zinc] 强制终止 Vite 进程失败:", error);
-          }
-        } else {
-          // 非 Windows 平台使用 SIGTERM
-          viteChild.kill("SIGTERM");
-          // 500ms 后如果进程还在，使用 SIGKILL
-          setTimeout(() => {
-            if (viteChild) {
-              viteChild.kill("SIGKILL");
-            }
-          }, 500);
-        }
-        viteChild = null;
-      }
-      
-      if (shellChild) {
-        console.log("[zinc] 关闭壳应用...");
-        if (process.platform === "win32") {
-          // Windows 上使用 taskkill 命令强制终止进程树
-          try {
-            spawn("taskkill", ["/F", "/T", "/PID", shellChild.pid?.toString() || ""], {
-              stdio: "inherit",
-            });
-          } catch (error) {
-            console.warn("[zinc] 强制终止壳进程失败:", error);
-          }
-        } else {
-          // 非 Windows 平台使用 SIGTERM
-          shellChild.kill("SIGTERM");
-          // 500ms 后如果进程还在，使用 SIGKILL
-          setTimeout(() => {
-            if (shellChild) {
-              shellChild.kill("SIGKILL");
-            }
-          }, 500);
-        }
-        shellChild = null;
-      }
-    };
-
-    // 处理用户中断
-    process.on("SIGINT", () => cleanup("SIGINT"));
-    process.on("SIGTERM", () => cleanup("SIGTERM"));
-
-    // 当壳应用关闭时，关闭 Vite 服务器
-    shell.on("close", (code: number) => {
-      console.log(`[zinc] 壳应用已关闭，退出码: ${code}`);
-      cleanup();
-      process.exit(code);
+      process.exit(0);
     });
 
-    // 当 Vite 服务器关闭时，关闭壳应用
-    vite.on("close", (code: number) => {
-      console.log(`[zinc] Vite 服务器已关闭，退出码: ${code}`);
-      if (code !== 0) {
-        cleanup();
-        process.exit(code);
+    // 壳关闭时 → 杀 vite → 退出
+    shell.on("close", () => {
+      killVite();
+      process.exit(0);
+    });
+
+    // Vite 关闭时 → 杀壳 → 退出
+    vite.on("close", (code) => {
+      if (shellChild && !shellChild.killed) {
+        shellChild.kill();
       }
+      exit(code ?? 1);
     });
 
   } catch (error: any) {
     console.error(`[zinc] ❌ 开发模式启动失败: ${error.message}`);
-    // 清理进程
-    if (viteChild) {
-      viteChild.kill();
-    }
-    if (shellChild) {
+    killVite();
+    if (shellChild && !shellChild.killed) {
       shellChild.kill();
     }
     process.exit(1);
@@ -356,7 +303,7 @@ function getDefaultShellPath(): string {
 // 主入口
 // ============================================================
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0];
 
@@ -368,7 +315,7 @@ function main() {
       cmdValidate(args);
       break;
     case "dev":
-      cmdDev(args);
+      await cmdDev(args);
       break;
     default:
       console.log(`
@@ -409,4 +356,7 @@ dev 选项:
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(`[zinc] ❌ ${err.message}`);
+  process.exit(1);
+});
