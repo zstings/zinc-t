@@ -51,24 +51,23 @@ function parseArgs(args: string[]): Record<string, any> {
 // Vite 开发服务器管理
 // ============================================================
 
-function parseVitePort(output: string): number | null {
-  // Vite 输出格式: "  ➜  Local:   http://localhost:5173/"
-  const localMatch = output.match(/localhost:(\d+)/);
-  if (localMatch) {
-    return parseInt(localMatch[1]);
+function parsePluginMessage(output: string): { port?: number; outputDir?: string } | null {
+  const result: { port?: number; outputDir?: string } = {};
+
+  const portMatch = output.match(/\[zinc:dev\] SERVER_PORT=(\d+)/);
+  if (portMatch) {
+    result.port = parseInt(portMatch[1]);
   }
 
-  // 备用匹配: "Local: http://127.0.0.1:5173/"
-  const ipMatch = output.match(/127\.0\.0\.1:(\d+)/);
-  if (ipMatch) {
-    return parseInt(ipMatch[1]);
+  const outputMatch = output.match(/\[zinc:build\] OUTPUT_DIR=(.+)/);
+  if (outputMatch) {
+    result.outputDir = outputMatch[1].trim();
   }
 
-  return null;
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 function isViteReady(output: string): boolean {
-  // Vite 输出格式: "VITE v8.0.8  ready in 264 ms"
   return output.includes("ready in") || output.includes(" ready in ") || output.includes("ready,");
 }
 
@@ -78,7 +77,7 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
 
     const vite = spawn(
       process.platform === "win32" ? "npx.cmd" : "npx",
-      ["vite", "--port", "0"],
+      ["vite"],
       {
         cwd: rootDir,
         stdio: ["ignore", "pipe", "pipe"],
@@ -95,12 +94,11 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
       outputBuffer += text;
       process.stdout.write(text);
 
-      // 尝试解析端口
-      if (!port) {
-        port = parseVitePort(outputBuffer);
+      const pluginInfo = parsePluginMessage(text);
+      if (pluginInfo?.port) {
+        port = pluginInfo.port;
       }
 
-      // 检查是否完全启动
       if (port && isViteReady(outputBuffer) && !resolved) {
         resolved = true;
         console.log(`[zinc] Vite 开发服务器已启动: http://localhost:${port}`);
@@ -116,16 +114,12 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
       reject(error);
     });
 
-    // 超时处理：5秒内没有获取到端口则使用默认
     setTimeout(() => {
       if (!resolved) {
-        const detectedPort = parseVitePort(outputBuffer);
-        if (detectedPort) {
-          port = detectedPort;
-          resolve({ port: detectedPort, child: vite });
+        if (port) {
+          resolve({ port, child: vite });
         } else {
-          // 使用 Vite 默认端口
-          console.log("[zinc] 无法自动检测端口，使用默认端口 5173");
+          console.log("[zinc] 无法获取端口，使用默认端口 5173");
           resolve({ port: 5173, child: vite });
         }
       }

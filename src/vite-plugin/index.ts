@@ -117,6 +117,18 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
       config = resolvedConfig;
     },
 
+    configureServer(server) {
+      if (isDev) {
+        server.httpServer?.once('listening', () => {
+          const address = server.httpServer?.address();
+          if (address && typeof address === 'object' && 'port' in address) {
+            const port = address.port;
+            console.log(`[zinc:dev] SERVER_PORT=${port}`);
+          }
+        });
+      }
+    },
+
     async closeBundle() {
       // 开发模式下跳过
       if (isDev && options.skipInDev !== false) {
@@ -149,6 +161,8 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           window: options.window,
           verbose: options.verbose,
         });
+
+        console.log(`[zinc:build] OUTPUT_DIR=${result.outputPath}`);
 
         if (options.openAfterBuild) {
           const { exec } = require("child_process");
