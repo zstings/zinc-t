@@ -80,7 +80,7 @@ hostname = "0.4"                 # 获取主机名（最新版）
 
 ```javascript
 // 前端调用：window.__ZINC__.call("window.setTitle", ["Hello"])
-// 实际通过 IPC 发送：window.__ZINC_IPC__.postMessage(JSON.stringify({id, method, args}))
+// 实际通过 IPC 发送：window.ipc.postMessage(JSON.stringify({id, method, args}))
 // 壳返回结果：window.__ZINC__.__resolve__(id, code, message, data)
 
 // 事件推送：壳通过 evaluate_script 调用

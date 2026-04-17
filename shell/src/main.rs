@@ -159,7 +159,7 @@ fn main() {
             return new Promise((resolve, reject) => {
                 const id = String(this.__nextId++);
                 this.__callbacks[id] = { resolve, reject };
-                window.__ZINC_IPC__.postMessage(JSON.stringify({
+                window.ipc.postMessage(JSON.stringify({
                     id,
                     method,
                     args
