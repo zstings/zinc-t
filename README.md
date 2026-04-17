@@ -1,11 +1,11 @@
-# A Framework
+# Zinc
 
 超轻量级桌面应用构建库。Vite 构建后一键打包为原生可执行文件。
 
 ## 特性
 
 - **超轻量**：构建产物最小 ~3MB，仅依赖系统 WebView
-- **零 Rust 门槛**：`npm install a` 即可使用，不需要 Rust 工具链
+- **零 Rust 门槛**：`npm install zinc` 即可使用，不需要 Rust 工具链
 - **Vite 原生集成**：Vite 插件自动接管构建流程
 - **单文件输出**：前端资源嵌入到可执行文件中
 - **双模式运行**：开发时在浏览器中调试，生产时在原生壳中运行
@@ -18,7 +18,7 @@
 ```bash
 npm create vite@latest my-app -- --template vanilla
 cd my-app
-npm install a
+npm install zinc
 ```
 
 ### 2. 配置 Vite
@@ -26,12 +26,13 @@ npm install a
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { aPlugin } from "a/vite-plugin";
+import { zincPlugin } from "zinc/vite-plugin";
 
 export default defineConfig({
   plugins: [
-    aPlugin({
+    zincPlugin({
       name: "我的应用",
+      identifier: "com.example.myapp",
       window: {
         title: "我的应用",
         width: 1200,
@@ -45,52 +46,48 @@ export default defineConfig({
 
 ### 3. 使用 API
 
-```ts
-import { window, fs, os, events, isNative } from "a";
+```html
+<script type="module">
+  // 测试 Zinc API
+  async function testAPI() {
+    // 获取系统信息
+    const platform = await window.__ZINC__.call('os.platform', []);
+    console.log('Platform:', platform);
 
-// 设置窗口标题
-await window.setTitle("Hello!");
+    // 获取进程 ID
+    const pid = await window.__ZINC__.call('process.pid', []);
+    console.log('PID:', pid);
 
-// 读写文件
-await fs.writeTextFile("~/data.txt", "Hello World");
-const content = await fs.readTextFile("~/data.txt");
+    // 设置窗口标题
+    await window.__ZINC__.call('window.setTitle', ['我的应用']);
+  }
 
-// 获取系统信息
-const platform = await os.platform();
-
-// 监听事件
-events.on("window.resized", (event, data) => {
-  console.log(`窗口大小: ${data.width} × ${data.height}`);
-});
-
-// 环境检测
-if (isNative) {
-  console.log("运行在原生壳中");
-} else {
-  console.log("运行在浏览器中（开发模式）");
-}
+  testAPI();
+</script>
 ```
 
 ### 4. 构建打包
 
 ```bash
 npm run build
-# Vite 构建完成后，a 插件自动将 dist/ 嵌入到可执行文件
+# Vite 构建完成后，zinc 插件自动将 dist/ 嵌入到可执行文件
 # 输出到 release/ 目录
 ```
 
 或使用 CLI：
 
 ```bash
-npx a build -i dist -n "我的应用" --width 1200 --height 800
+npx zinc build -i dist -n "我的应用" --width 1200 --height 800
 ```
 
 ### 5. 开发模式
 
 ```bash
+# 方式 1：浏览器开发
 npm run dev
-# 正常在浏览器中开发和调试
-# a 的 API 在浏览器中会安全降级，不会报错
+
+# 方式 2：原生壳 + 开发服务器
+npx zinc dev --dir .
 ```
 
 ## 架构
@@ -98,10 +95,10 @@ npm run dev
 ```
 ┌─────────────────────────────────┐
 │  前端代码 (HTML/JS/CSS)          │
-│  import { window, fs } from "a" │
+│  import { window, fs } from "zinc" │
 ├─────────────────────────────────┤
 │  运行时 Bridge (注入 JS)         │
-│  window.__A__.call("fs.read")   │
+│  window.__ZINC__.call("fs.read")   │
 ├─────────────────────────────────┤
 │  IPC: postMessage ↔ evaluate    │
 ├─────────────────────────────────┤
