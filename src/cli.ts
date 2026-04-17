@@ -12,7 +12,7 @@
 import { resolve, dirname } from "path";
 import { existsSync } from "fs";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import type { ChildProcess } from "child_process";
 import { build, validate } from "./build/embed.js";
 
@@ -75,7 +75,6 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; chil
     const vite = spawn("npx", ["vite"], {
       cwd: rootDir,
       stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
     });
 
     let outputBuffer = "";
@@ -210,7 +209,7 @@ async function cmdDev(args: Record<string, any>) {
     try {
       // vite 是通过 shell: true 启动的，需要杀掉整个进程树
       if (process.platform === "win32") {
-        spawn("taskkill", ["/F", "/T", "/PID", String(viteChild.pid)], { stdio: "ignore" });
+        spawnSync("taskkill", ["/F", "/T", "/PID", String(viteChild.pid)], { stdio: "ignore" });
       } else {
         viteChild.kill("SIGTERM");
       }
