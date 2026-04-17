@@ -8,7 +8,7 @@ import { readFile, readdir, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { resolve, relative } from "path";
 import { createHash } from "crypto";
-import { createGzip } from "zlib";
+import { createDeflate } from "zlib";
 
 /** 魔数：ZINC */
 const MAGIC = Buffer.from("ZINC");
@@ -88,14 +88,14 @@ function sha256(data: Buffer): string {
 async function compress(data: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const gzip = createGzip();
+    const deflate = createDeflate();
 
-    gzip.on("data", (chunk) => chunks.push(chunk));
-    gzip.on("end", () => resolve(Buffer.concat(chunks)));
-    gzip.on("error", reject);
+    deflate.on("data", (chunk) => chunks.push(chunk));
+    deflate.on("end", () => resolve(Buffer.concat(chunks)));
+    deflate.on("error", reject);
 
-    gzip.write(data);
-    gzip.end();
+    deflate.write(data);
+    deflate.end();
   });
 }
 
@@ -120,20 +120,20 @@ export function validate(filePath: string): ValidateResult {
     }
 
     // 验证魔数
-    const magicBuffer = buffer.subarray(offset, offset + MAGIC.length);
+    const magicBuffer = buffer.subarray(Number(offset), Number(offset) + MAGIC.length);
     if (!magicBuffer.equals(MAGIC)) {
       return { valid: false };
     }
 
     // 读取索引长度
     const indexLengthBuffer = buffer.subarray(
-      offset + MAGIC.length,
-      offset + MAGIC.length + INDEX_LENGTH_SIZE
+      Number(offset) + MAGIC.length,
+      Number(offset) + MAGIC.length + INDEX_LENGTH_SIZE
     );
     const indexLength = indexLengthBuffer.readUInt32LE();
 
     // 读取索引
-    const indexStart = offset + MAGIC.length + INDEX_LENGTH_SIZE;
+    const indexStart = Number(offset) + MAGIC.length + INDEX_LENGTH_SIZE;
     const indexEnd = indexStart + indexLength;
     const indexBuffer = buffer.subarray(indexStart, indexEnd);
     const index = JSON.parse(indexBuffer.toString());
@@ -232,12 +232,7 @@ export async function build(options: {
   indexLengthBuffer.writeUInt32LE(indexBuffer.length);
 
   const offsetBuffer = Buffer.alloc(OFFSET_SIZE);
-  const dataStartOffset =
-    shellBuffer.length +
-    MAGIC.length +
-    INDEX_LENGTH_SIZE +
-    indexBuffer.length +
-    compressedData.length;
+  const dataStartOffset = shellBuffer.length;
   offsetBuffer.writeBigUInt64LE(BigInt(dataStartOffset));
 
   const tail = Buffer.concat([

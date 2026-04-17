@@ -12,7 +12,7 @@ use tao::event::{WindowEvent};
 use tao::event_loop::{EventLoop};
 use tao::window::{WindowBuilder};
 use tao::dpi::LogicalSize;
-use wry::http::{Response};
+use wry::http::Response;
 use wry::{WebView, WebViewBuilder};
 
 const MAGIC: &[u8] = b"ZINC";
@@ -67,8 +67,10 @@ impl Resources {
         file.read_exact(&mut index_json)?;
         let index: serde_json::Map<String, Value> = serde_json::from_slice(&index_json)?;
 
-        let mut compressed_data = Vec::new();
-        file.read_to_end(&mut compressed_data)?;
+        // 计算压缩数据的长度：文件大小 - 偏移量 - 魔数大小 - 索引长度大小 - 索引长度 - 偏移量大小
+        let compressed_data_length = file_size - offset - MAGIC_SIZE as u64 - INDEX_LENGTH_SIZE as u64 - index_length as u64 - OFFSET_SIZE as u64;
+        let mut compressed_data = vec![0u8; compressed_data_length as usize];
+        file.read_exact(&mut compressed_data)?;
 
         let mut decoder = ZlibDecoder::new(&compressed_data[..]);
         let mut data = Vec::new();
@@ -96,6 +98,10 @@ impl Resources {
             }
         }
         None
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.index.keys()
     }
 }
 
@@ -145,9 +151,16 @@ fn main() {
     let mut resources = None;
     if !dev_mode {
         if let Ok(exe_path) = std::env::current_exe() {
-            if let Ok(res) = Resources::load_from_exe(&exe_path) {
-                resources = Some(Arc::new(res));
+            match Resources::load_from_exe(&exe_path) {
+                Ok(res) => {
+                    resources = Some(Arc::new(res));
+                }
+                Err(e) => {
+                    eprintln!("Failed to load resources: {}", e);
+                }
             }
+        } else {
+            eprintln!("Failed to get current exe path");
         }
     }
 
@@ -184,7 +197,7 @@ fn main() {
                 try {
                     listener(data);
                 } catch (e) {
-                    console.error('Error in event listener:', e);
+                    console.error("Error in event listener:", e);
                 }
             }
         },
@@ -227,12 +240,15 @@ fn main() {
             .build(&window)
             .unwrap()
     } else {
+        let resources_clone = resources.clone();
+        
         WebViewBuilder::new()
             .with_initialization_script(init_script)
             .with_url(&initial_url)
             .with_devtools(dev_mode)
-            .with_custom_protocol("zinc".to_string(), move |request, _| {
-                let path = request.trim_start_matches("zinc://").trim_start_matches('/');
+            .with_custom_protocol("zinc".to_string(), move |_webview_id, request| {
+                let uri = request.uri();
+                let path = uri.path().trim_start_matches('/');
                 let path = if path.is_empty() { "index.html" } else { path };
 
                 if dev_mode {
@@ -246,7 +262,7 @@ fn main() {
                             }
                         };
                         let file_path = dev_dir_abs.join(path);
-                        if let Ok(mut file) = File::open(file_path) {
+                        if let Ok(mut file) = File::open(&file_path) {
                             let mut content = Vec::new();
                             if file.read_to_end(&mut content).is_ok() {
                                 let mime = mime_guess::from_path(path)
@@ -260,7 +276,7 @@ fn main() {
                             }
                         }
                     }
-                } else if let Some(ref resources) = resources {
+                } else if let Some(ref resources) = resources_clone {
                     if let Some(content) = resources.get(path) {
                         let mime = mime_guess::from_path(path)
                             .first_or_text_plain()
