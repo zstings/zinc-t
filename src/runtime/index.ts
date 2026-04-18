@@ -15,18 +15,18 @@ declare const window: {
   __ZINC__?: ZincAPI;
 };
 
-const original = window.__ZINC__;
-
-const zincAPI: ZincAPI = {
-  call: original?.call ?? (async () => {
-    console.warn(`[zinc] 此 API 仅在原生模式下可用`);
-    return undefined;
-  }),
-  __emit__: original?.__emit__ ?? ((_event: string, _data?: any) => {}),
-  on: original?.on ?? ((_event: string, _listener: (data: any) => void) => {}),
-  off: original?.off ?? ((_event: string, _listener: (data: any) => void) => {}),
-};
-
-window.__ZINC__ = zincAPI;
+// 如果已经存在 __ZINC__（壳已注入），则不要覆盖
+if (!window.__ZINC__) {
+  const zincAPI: ZincAPI = {
+    call: async () => {
+      console.warn(`[zinc] 此 API 仅在原生模式下可用`);
+      return undefined;
+    },
+    __emit__: (_event: string, _data?: any) => {},
+    on: (_event: string, _listener: (data: any) => void) => {},
+    off: (_event: string, _listener: (data: any) => void) => {},
+  };
+  window.__ZINC__ = zincAPI;
+}
 
 export {};

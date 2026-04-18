@@ -17,7 +17,7 @@ function zincCall(method: string, args: any[] = []): Promise<any> {
 /**
  * 窗口相关 API
  */
-export const window = {
+export const browserWindow = {
   // TODO: 实现 window API
 };
 
