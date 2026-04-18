@@ -1,4 +1,5 @@
-// #![windows_subsystem = "windows"]
+// release 模式下隐藏控制台窗口，debug 模式下显示
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod app_config;
 mod args_utils;
 use std::fs::File;
