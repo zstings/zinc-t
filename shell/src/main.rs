@@ -450,7 +450,6 @@ fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
 fn handle_app_api(method: &str, _args: &Value) -> Result<Value, String> {
     let config = APP_CONFIG.get().ok_or("App config not initialized")?;
     match method {
-        "getConfig" => Ok(json!({})),
         "isReady" => Ok(json!(true)), // 应用是否已完成初始化
         "name" => Ok(json!(config.name)), // 应用名称
         "version" => Ok(json!(config.version)), // 应用版本号（来自 package.json）

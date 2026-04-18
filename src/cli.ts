@@ -80,6 +80,7 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; iden
     const vite = spawn("npx", ["vite"], {
       cwd: rootDir,
       stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
     });
 
     let outputBuffer = "";

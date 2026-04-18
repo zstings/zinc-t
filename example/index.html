@@ -58,8 +58,11 @@
         // 测试 process API
         const pid = await window.__ZINC__.call('process.pid', []);
         console.log('PID:', pid);
+
+        const appName = await window.__ZINC__.call('app.name', []);
+        console.log('App Name:', appName);
         
-        alert(`Zinc API 测试成功！\nOS: ${osInfo}\nPID: ${pid}`);
+        alert(`Zinc API 测试成功！\nOS: ${osInfo}\nPID: ${pid}\nApp Name: ${appName}`);
       } catch (error) {
         console.error('API 测试失败:', error);
         alert('API 测试失败: ' + error.message);
