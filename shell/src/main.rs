@@ -1,5 +1,6 @@
 // #![windows_subsystem = "windows"]
 mod app_config;
+mod args_utils;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -140,7 +141,7 @@ fn main() {
 
     app_config::init_app_config();
 
-    let c = app_config::get_config().clone();
+    let app_config = app_config::get_config().clone();
 
     
 
@@ -215,25 +216,9 @@ fn main() {
         }
     }
 
-    // 打印 app-config
-    if let Some(app_config) = cli_app_config {
-        println!("app-config: {}", app_config);
-    }
-
-    // cli 参数优先，否则从嵌入资源中读取
-    let identifier = APP_CONFIG.get().unwrap().identifier.clone();
-
-    let app_name = APP_CONFIG.get().unwrap().name.clone();
-
-    let window_config = APP_CONFIG.get().unwrap().window.clone();
-    let window_title = window_config.as_ref()
-        .and_then(|w| w.get("title"))
-        .and_then(|t| t.as_str())
-        .expect("window.title is required");
-
     #[cfg(target_os = "windows")]
     let mut web_context = if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
-        let data_dir = PathBuf::from(local_appdata).join(identifier);
+        let data_dir = PathBuf::from(local_appdata).join(app_config.identifier);
         std::fs::create_dir_all(&data_dir).ok();
         WebContext::new(Some(data_dir))
     } else {
@@ -245,10 +230,10 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(c.name)
+        .with_title(app_config.name)
         .with_inner_size(LogicalSize::new(
-            c.window.width,
-            c.window.height
+            app_config.window.width,
+            app_config.window.height
         ))
         .build(&event_loop)
         .unwrap();
@@ -488,7 +473,7 @@ fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
 }
 
 fn handle_app_api(method: &str, _args: &Value) -> Result<Value, String> {
-    let config = APP_CONFIG.get().ok_or("App config not initialized")?;
+    let config = app_config::get_config().clone();
     match method {
         "isReady" => Ok(json!(true)), // 应用是否已完成初始化
         "name" => Ok(json!(config.name)), // 应用名称

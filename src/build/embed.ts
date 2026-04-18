@@ -167,14 +167,6 @@ export async function build(options: {
   shellPath: string;
   /** 输出路径 */
   outputPath: string;
-  /** 应用名称 */
-  name?: string;
-  /** 应用标识符，用于存储用户数据目录 */
-  identifier?: string;
-  /** 图标路径 */
-  icon?: string;
-  /** 窗口配置 */
-  window?: any;
   /** 是否显示详细日志 */
   verbose?: boolean;
 }): Promise<BuildResult> {
@@ -214,9 +206,6 @@ export async function build(options: {
     currentOffset += size;
     rawChunks.push(data);
   }
-
-  if (options.identifier) index["__zinc_identifier__"] = options.identifier;
-  if (options.name) index["__zinc_name__"] = options.name;
 
   const indexJson = JSON.stringify(index);
   const indexBuffer = Buffer.from(indexJson);

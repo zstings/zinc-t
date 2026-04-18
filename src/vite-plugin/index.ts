@@ -25,6 +25,7 @@ import { resolve, dirname } from "path";
 import { existsSync, writeFileSync } from "fs";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { spawn, type ChildProcess } from "child_process";
 
 /** 获取当前文件的目录 */
 function getCurrentDir(): string {
@@ -34,18 +35,29 @@ function getCurrentDir(): string {
 /** Vite 插件配置 */
 export interface ZincPluginOptions {
   /** 应用名称 */
-  name?: string;
+  name: string;
   /** 应用标识符，用于存储用户数据目录 (e.g. com.example.myapp) */
   identifier?: string;
   /** 应用图标路径 */
   icon?: string;
   /** 窗口配置 */
-  window?: any;
+  window?: {
+    title?: string;
+    width?: number;
+    height?: number;
+    minWidth?: number;
+    minHeight?: number;
+    resizable?: boolean;
+    fullscreen?: boolean;
+    maximized?: boolean;
+    transparent?: boolean;
+    decorations?: boolean;
+    alwaysOnTop?: boolean;
+    center?: boolean;
+  };
   /** 应用版本号 */
   version?: string;
-  /** 输出文件名（默认使用应用名） */
-  outputName?: string;
-  /** 输出目录（默认为 dist-release/） */
+  /** 输出路径（完整路径，默认为 release/应用名.exe） */
   outputDir?: string;
   /** 自定义壳二进制路径（默认使用内置预编译壳） */
   shellPath?: string;
@@ -53,8 +65,6 @@ export interface ZincPluginOptions {
   skipInDev?: boolean;
   /** 是否显示详细日志 */
   verbose?: boolean;
-  /** 构建完成后是否自动打开应用 */
-  openAfterBuild?: boolean;
 }
 
 /** 获取预编译壳路径 */
@@ -106,9 +116,87 @@ async function loadEmbedModule() {
   throw new Error(`找不到 embed 模块: ${embedPath}`);
 }
 
-export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
+/** 开发模式数据文件路径 */
+const DEV_DATA_FILE = ".zinc-cli-data.json";
+
+export function zincPlugin(options: ZincPluginOptions): Plugin {
   let config: ResolvedConfig;
   let isDev = false;
+  let shellChild: ChildProcess | null = null;
+
+  // 获取壳路径
+  const getShellPath = () => options.shellPath || getPrebuiltShellPath();
+
+  // 获取输出路径
+  const getOutputPath = () => {
+    if (options.outputDir) {
+      return resolve(options.outputDir);
+    }
+    const outputName = options.name + (process.platform === "win32" ? ".exe" : "");
+    return resolve(process.cwd(), "release", outputName);
+  };
+
+  // 获取输入目录
+  const getInputDir = () => resolve(process.cwd(), config?.build?.outDir || "dist");
+
+  // 启动壳（开发模式）
+  function startShell(devUrl: string) {
+    const shellPath = getShellPath();
+
+    if (!existsSync(shellPath)) {
+      console.error(`[zinc] 壳文件不存在: ${shellPath}`);
+      console.error(`[zinc] 请先编译壳: cd shell && cargo build --release`);
+      return;
+    }
+
+    console.log(`[zinc] 启动壳，加载: ${devUrl}`);
+
+    const shellArgs = ["--dev-url", devUrl, "--app-config", JSON.stringify(options)];
+    const shell = spawn(shellPath, shellArgs, { stdio: "ignore", detached: true });
+    shellChild = shell;
+    shell.unref();
+
+    // 壳关闭时退出进程
+    shell.on("close", () => { process.exit(0) });
+
+    // Ctrl+C 时杀壳
+    process.on("SIGINT", () => {
+      if (shellChild && !shellChild.killed) {
+        shellChild.kill();
+      }
+      process.exit(0);
+    });
+  }
+
+  // 执行构建
+  async function doBuild() {
+    const inputDir = getInputDir();
+    const shellPath = getShellPath();
+    const outputPath = getOutputPath();
+
+    if (!existsSync(inputDir)) {
+      console.warn(`[zinc] 构建产物目录不存在: ${inputDir}`);
+      return;
+    }
+
+    try {
+      const { build } = await loadEmbedModule();
+      const result = await build({
+        inputDir,
+        shellPath,
+        outputPath,
+        verbose: options.verbose,
+      });
+
+      console.log(`[zinc:build] OUTPUT_DIR=${result.outputPath}`);
+    } catch (error: any) {
+      console.error(`[zinc] ❌ 构建失败: ${error.message}`);
+      if (options.verbose) {
+        console.error(error.stack);
+      }
+      throw error;
+    }
+  }
 
   return {
     name: "zinc-plugin",
@@ -122,16 +210,18 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
     },
 
     configureServer(server) {
-      if (isDev) {
-        server.httpServer?.once('listening', () => {
-          const address = server.httpServer?.address();
-          if (address && typeof address === 'object' && 'port' in address) {
-            const port = address.port;
-            writeFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), JSON.stringify({options, port}), "utf-8");
-            console.log(`[zinc:dev] SERVER_OR`);
-          }
-        });
-      }
+      if (!isDev) return;
+      // 开发模式下，Vite 服务器启动后启动壳
+      server.httpServer?.once("listening", () => {
+        const address = server.httpServer?.address();
+        if (address && typeof address === "object" && "port" in address) {
+          const port = address.port;
+          const devUrl = `http://localhost:${port}`;
+          console.log(`[zinc] Vite 开发服务器已启动: ${devUrl}`);
+          // 启动壳
+          startShell(devUrl);
+        }
+      });
     },
 
     async closeBundle() {
@@ -140,49 +230,12 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
         console.log("[zinc] 开发模式，跳过原生构建");
         return;
       }
-
-      const distDir = resolve(config.root, config.build.outDir);
-
-      if (!existsSync(distDir)) {
-        console.warn(`[zinc] 构建产物目录不存在: ${distDir}`);
-        return;
-      }
-
-      try {
-        const shellPath = options.shellPath || getPrebuiltShellPath();
-        const outputName = options.outputName
-          ? (options.outputName + (process.platform === "win32" ? ".exe" : ""))
-          : (options.name || "app") + (process.platform === "win32" ? ".exe" : "");
-        const outputDir = options.outputDir || resolve(config.root, "release");
-        const outputPath = resolve(outputDir, outputName);
-
-        const { build } = await loadEmbedModule();
-        const result = build({
-          inputDir: distDir,
-          shellPath,
-          outputPath,
-          name: options.name,
-          identifier: options.identifier,
-          icon: options.icon,
-          window: options.window,
-          verbose: options.verbose,
-        });
-
-        console.log(`[zinc:build] OUTPUT_DIR=${result.outputPath}`);
-
-        if (options.openAfterBuild) {
-          const { exec } = require("child_process");
-          const command = process.platform === "win32"
-            ? `start "" "${result.outputPath}"`
-            : `open "${result.outputPath}"`;
-          exec(command);
-        }
-      } catch (error: any) {
-        console.error(`[zinc] ❌ 构建失败: ${error.message}`);
-        if (options.verbose) {
-          console.error(error.stack);
-        }
-      }
+      writeFileSync(resolve(process.cwd(), config?.build?.outDir || "dist", DEV_DATA_FILE), JSON.stringify(options), "utf-8");
+      // 执行构建
+      await doBuild();
     },
   };
 }
+
+// 为了保持兼容性，保留默认导出
+export default zincPlugin;
