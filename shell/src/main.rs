@@ -2,11 +2,11 @@
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use flate2::read::ZlibDecoder;
 use hostname::get;
-use serde::Deserialize;
+use serde::{Deserialize};
 use serde_json::{json, Value};
 use tao::event::{WindowEvent};
 use tao::event_loop::{EventLoop};
@@ -19,6 +19,15 @@ const MAGIC: &[u8] = b"ZINC";
 const MAGIC_SIZE: usize = 4;
 const INDEX_LENGTH_SIZE: usize = 4;
 const OFFSET_SIZE: usize = 8;
+
+static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
+
+struct AppConfig {
+    dev_mode: bool,
+    identifier: String,
+    name: String,
+    version: String,
+}
 
 #[derive(Deserialize)]
 struct IpcMessage {
@@ -174,6 +183,15 @@ fn main() {
     let identifier = cli_identifier.or_else(|| {
         resources.as_ref().and_then(|r| r.get_meta("__zinc_identifier__")).map(|s| s.to_string())
     });
+
+    let app_name = resources.as_ref().and_then(|r| r.get_meta("__zinc_name__")).map(|s| s.to_string()).unwrap_or_else(|| "Zinc".to_string());
+
+    APP_CONFIG.set(AppConfig {
+        dev_mode,
+        identifier: identifier.clone().unwrap_or_else(|| "com.zinc.app".to_string()),
+        name: app_name,
+        version: "1.0.0".to_string(),
+    }).ok();
 
     #[cfg(target_os = "windows")]
     let mut web_context = if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
@@ -430,13 +448,14 @@ fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
 }
 
 fn handle_app_api(method: &str, _args: &Value) -> Result<Value, String> {
+    let config = APP_CONFIG.get().ok_or("App config not initialized")?;
     match method {
         "getConfig" => Ok(json!({})),
         "isReady" => Ok(json!(true)), // 应用是否已完成初始化
-        "name" => Ok(json!("Zinc")), // 应用名称
-        "version" => Ok(json!("1.0.0")), // 应用版本号（来自 package.json）
-        "identifier" => Ok(json!("com.zinc")), // 应用标识符
-        "isPackaged" => Ok(json!(false)), // 是否以打包模式运行（对应 Electron app.isPackaged）
+        "name" => Ok(json!(config.name)), // 应用名称
+        "version" => Ok(json!(config.version)), // 应用版本号（来自 package.json）
+        "identifier" => Ok(json!(config.identifier)), // 应用标识符
+        "isPackaged" => Ok(json!(!config.dev_mode)), // 是否以打包模式运行（对应 Electron app.isPackaged）
         "isNative" => Ok(json!(true)), // 是否在原生壳中运行（开发模式为 false）
         _ => Err(format!("Unknown app method: {}", method)),
     }

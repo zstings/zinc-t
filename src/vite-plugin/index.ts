@@ -41,6 +41,8 @@ export interface ZincPluginOptions {
   icon?: string;
   /** 窗口配置 */
   window?: any;
+  /** 应用版本号 */
+  version?: string;
   /** 输出文件名（默认使用应用名） */
   outputName?: string;
   /** 输出目录（默认为 dist-release/） */
