@@ -1,4 +1,5 @@
 // #![windows_subsystem = "windows"]
+mod app_config;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -136,6 +137,13 @@ impl Resources {
 }
 
 fn main() {
+
+    app_config::init_app_config();
+
+    let c = app_config::get_config().clone();
+
+    
+
     let args: Vec<String> = std::env::args().collect();
     let mut dev_mode = false;
     let mut dev_dir = None;
@@ -237,8 +245,11 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(window_title)
-        .with_inner_size(LogicalSize::new(800, 600))
+        .with_title(c.name)
+        .with_inner_size(LogicalSize::new(
+            c.window.width,
+            c.window.height
+        ))
         .build(&event_loop)
         .unwrap();
 
