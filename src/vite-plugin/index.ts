@@ -22,7 +22,7 @@
 
 import type { Plugin, ResolvedConfig } from "vite";
 import { resolve, dirname } from "path";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 
@@ -127,10 +127,8 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           const address = server.httpServer?.address();
           if (address && typeof address === 'object' && 'port' in address) {
             const port = address.port;
-            console.log(`[zinc:dev] SERVER_PORT=${port}`);
-            if (options.identifier) {
-              console.log(`[zinc:dev] IDENTIFIER=${options.identifier}`);
-            }
+            writeFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), JSON.stringify({...options, port}), "utf-8");
+            console.log(`[zinc:dev] SERVER_OR`);
           }
         });
       }
