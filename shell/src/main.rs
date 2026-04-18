@@ -4,7 +4,7 @@ mod args_utils;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 use flate2::read::ZlibDecoder;
 use hostname::get;
@@ -21,32 +21,6 @@ const MAGIC: &[u8] = b"ZINC";
 const MAGIC_SIZE: usize = 4;
 const INDEX_LENGTH_SIZE: usize = 4;
 const OFFSET_SIZE: usize = 8;
-
-static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
-
-#[derive(Deserialize)]
-struct CliAppConfig {
-    /** 应用名称 */
-    name: Option<String>,
-    /** 应用标识符，用于存储用户数据目录 (e.g. com.example.myapp) */
-    identifier: Option<String>,
-    /** 应用图标路径 */
-    icon: Option<String>,
-    /** 窗口配置 */
-    window: Option<serde_json::Value>,
-    /** 应用版本号 */
-    version: Option<String>,
-    /** 是否显示详细日志 */
-    verbose: Option<bool>
-}
-
-struct AppConfig {
-    dev_mode: bool,
-    identifier: String,
-    name: String,
-    version: String,
-    window: Option<serde_json::Value>,
-}
 
 #[derive(Deserialize)]
 struct IpcMessage {
@@ -147,10 +121,8 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     let mut dev_mode = false;
-    let mut dev_dir = None;
+    let mut dev_dir: Option<PathBuf> = None;
     let mut dev_url = None;
-    let mut cli_app_config: Option<String> = None;
-    let mut cli_identifier: Option<String> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -177,18 +149,8 @@ fn main() {
                 }
             }
             "--app-config" => {
+                // 配置已由 app_config 模块处理，这里只需跳过参数
                 if i + 1 < args.len() {
-                    let config_json = &args[i + 1];
-                    cli_app_config = Some(config_json.clone());
-                    if let Ok(cli_config) = serde_json::from_str::<CliAppConfig>(config_json) {
-                        APP_CONFIG.set(AppConfig {
-                            dev_mode,
-                            identifier: cli_config.identifier.unwrap(),
-                            name: cli_config.name.unwrap(),
-                            version: cli_config.version.unwrap(),
-                            window: cli_config.window,
-                        }).ok();
-                    }
                     i += 2;
                 } else {
                     i += 1;
@@ -230,7 +192,7 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(app_config.name)
+        .with_title(app_config.window.title)
         .with_inner_size(LogicalSize::new(
             app_config.window.width,
             app_config.window.height
