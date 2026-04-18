@@ -172,16 +172,12 @@ fn main() {
                     let config_json = &args[i + 1];
                     cli_app_config = Some(config_json.clone());
                     if let Ok(cli_config) = serde_json::from_str::<CliAppConfig>(config_json) {
-                        let identifier = cli_config.identifier.clone().unwrap_or_else(|| "com.zinc.app".to_string());
-                        let name = cli_config.name.clone().unwrap_or_else(|| "Zinc".to_string());
-                        let version = cli_config.version.clone().unwrap_or_else(|| "1.0.0".to_string());
-                        let window = cli_config.window.clone();
                         APP_CONFIG.set(AppConfig {
                             dev_mode,
-                            identifier,
-                            name,
-                            version,
-                            window,
+                            identifier: cli_config.identifier.unwrap(),
+                            name: cli_config.name.unwrap(),
+                            version: cli_config.version.unwrap(),
+                            window: cli_config.window,
                         }).ok();
                     }
                     i += 2;
@@ -217,24 +213,19 @@ fn main() {
     }
 
     // cli 参数优先，否则从嵌入资源中读取
-    let identifier = cli_identifier.or_else(|| {
-        resources.as_ref().and_then(|r| r.get_meta("__zinc_identifier__")).map(|s| s.to_string())
-    });
+    let identifier = APP_CONFIG.get().unwrap().identifier.clone();
 
-    let app_name = resources.as_ref().and_then(|r| r.get_meta("__zinc_name__")).map(|s| s.to_string()).unwrap_or_else(|| "Zinc".to_string());
+    let app_name = APP_CONFIG.get().unwrap().name.clone();
 
-    APP_CONFIG.set(AppConfig {
-        dev_mode,
-        identifier: identifier.clone().unwrap_or_else(|| "com.zinc.app".to_string()),
-        name: app_name,
-        version: "1.0.0".to_string(),
-        window: None,
-    }).ok();
+    let window_config = APP_CONFIG.get().unwrap().window.clone();
+    let window_title = window_config.as_ref()
+        .and_then(|w| w.get("title"))
+        .and_then(|t| t.as_str())
+        .expect("window.title is required");
 
     #[cfg(target_os = "windows")]
     let mut web_context = if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
-        let app_id = identifier.unwrap_or_else(|| "com.zinc.app".to_string());
-        let data_dir = PathBuf::from(local_appdata).join(app_id).join("WebView2");
+        let data_dir = PathBuf::from(local_appdata).join(identifier);
         std::fs::create_dir_all(&data_dir).ok();
         WebContext::new(Some(data_dir))
     } else {
@@ -246,7 +237,7 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Zinc App")
+        .with_title(window_title)
         .with_inner_size(LogicalSize::new(800, 600))
         .build(&event_loop)
         .unwrap();
