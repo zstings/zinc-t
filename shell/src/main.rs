@@ -432,7 +432,12 @@ fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
 fn handle_app_api(method: &str, _args: &Value) -> Result<Value, String> {
     match method {
         "getConfig" => Ok(json!({})),
-        "version" => Ok(json!("1.0.0")),
+        "isReady" => Ok(json!(true)), // 应用是否已完成初始化
+        "name" => Ok(json!("Zinc")), // 应用名称
+        "version" => Ok(json!("1.0.0")), // 应用版本号（来自 package.json）
+        "identifier" => Ok(json!("com.zinc")), // 应用标识符
+        "isPackaged" => Ok(json!(false)), // 是否以打包模式运行（对应 Electron app.isPackaged）
+        "isNative" => Ok(json!(true)), // 是否在原生壳中运行（开发模式为 false）
         _ => Err(format!("Unknown app method: {}", method)),
     }
 }
