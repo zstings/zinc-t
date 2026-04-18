@@ -230,7 +230,12 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
         console.log("[zinc] 开发模式，跳过原生构建");
         return;
       }
-      writeFileSync(resolve(process.cwd(), config?.build?.outDir || "dist", DEV_DATA_FILE), JSON.stringify(options), "utf-8");
+      // 构建配置，添加 dev_mode: false
+      const buildConfig = {
+        ...options,
+        dev_mode: false,
+      };
+      writeFileSync(resolve(process.cwd(), config?.build?.outDir || "dist", DEV_DATA_FILE), JSON.stringify(buildConfig), "utf-8");
       // 执行构建
       await doBuild();
     },
