@@ -127,7 +127,7 @@ export function zincPlugin(options: ZincPluginOptions = {}): Plugin {
           const address = server.httpServer?.address();
           if (address && typeof address === 'object' && 'port' in address) {
             const port = address.port;
-            writeFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), JSON.stringify({...options, port}), "utf-8");
+            writeFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), JSON.stringify({options, port}), "utf-8");
             console.log(`[zinc:dev] SERVER_OR`);
           }
         });

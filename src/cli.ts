@@ -15,6 +15,11 @@ import { fileURLToPath } from "url";
 import { spawn, spawnSync } from "child_process";
 import type { ChildProcess } from "child_process";
 import { build, validate } from "./build/embed.js";
+import type { ZincPluginOptions } from "./vite-plugin";
+
+interface DevServerData extends ZincPluginOptions {
+  port: number;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -48,7 +53,7 @@ function parseArgs(args: string[]): Record<string, any> {
 // Vite 开发服务器管理
 // ============================================================
 
-async function startViteDevServer(rootDir: string): Promise<{ port: number; identifier?: string; child: ChildProcess }> {
+async function startViteDevServer(rootDir: string): Promise<{ options: ZincPluginOptions; port: number; child: ChildProcess }> {
   return new Promise((proResolve, reject) => {
     console.log("[zinc] 启动 Vite 开发服务器...");
     writeFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), '', "utf-8");
@@ -66,7 +71,7 @@ async function startViteDevServer(rootDir: string): Promise<{ port: number; iden
         const data = JSON.parse(readFileSync(resolve(process.cwd(), ".zinc-cli-data.json"), "utf-8"));
         rmSync(resolve(process.cwd(), ".zinc-cli-data.json"));
         console.log(`[zinc] Vite 开发服务器已启动: http://localhost:${data.port}`);
-        proResolve({ ...data, child: vite });
+        proResolve({ options: data.options, port: data.port, child: vite });
       }
     });
 
@@ -194,7 +199,8 @@ async function cmdDev(args: Record<string, any>) {
 
   try {
     // 启动 Vite 开发服务器
-    const { port, identifier, child: vite } = await startViteDevServer(devDir);
+    const {  child: vite, options, port } = await startViteDevServer(devDir);
+    if(!(port && options.identifier && options.version && options.window)) throw new Error("Vite 服务器启动失败，缺少窗口配置数据");
     viteChild = vite;
 
     // 启动壳
@@ -204,7 +210,7 @@ async function cmdDev(args: Record<string, any>) {
     console.log(`[zinc] 启动壳，加载: ${devUrl}`);
 
     const shellArgs = ["--dev-url", devUrl];
-    if (identifier) shellArgs.push("--identifier", identifier);
+    shellArgs.push("--app-config", JSON.stringify(options));
     const shell = spawn(shellPath, shellArgs, {
       stdio: "ignore",
       detached: true,
