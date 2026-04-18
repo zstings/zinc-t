@@ -45,23 +45,26 @@
   <button id="test-btn">测试 Zinc API</button>
 
   <script type="module">
+    import { os, process, app } from 'zinc';
+
     // 监听按钮点击事件
     document.getElementById('test-btn').addEventListener('click', testZincAPI);
-    
+
     // 测试 Zinc API
     async function testZincAPI() {
       try {
-        // 测试 os API
-        const osInfo = await window.__ZINC__.call('os.platform', []);
+        // 测试 os API - 新的调用方式
+        const osInfo = await os.platform();
         console.log('OS:', osInfo);
-        
-        // 测试 process API
-        const pid = await window.__ZINC__.call('process.pid', []);
+
+        // 测试 process API - 新的调用方式
+        const pid = await process.pid();
         console.log('PID:', pid);
 
-        const appName = await window.__ZINC__.call('app.name', []);
+        // 测试 app API - 新的调用方式
+        const appName = await app.name();
         console.log('App Name:', appName);
-        
+
         alert(`Zinc API 测试成功！\nOS: ${osInfo}\nPID: ${pid}\nApp Name: ${appName}`);
       } catch (error) {
         console.error('API 测试失败:', error);

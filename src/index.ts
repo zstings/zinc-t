@@ -1,8 +1,6 @@
 /**
- * zinc 框架 - 主入口
+ * zinc 框架 - 运行时 API 入口（浏览器环境）
  */
 
-export { build } from "./build/embed";
-export type { BuildResult, ValidateResult } from "./build/embed";
-export { zincPlugin } from "./vite-plugin";
-export type { ZincPluginOptions } from "./vite-plugin";
+// 运行时 API
+export { os, app, process, fs, dialog, clipboard, events, call } from "./runtime/api";
