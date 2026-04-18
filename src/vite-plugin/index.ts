@@ -151,13 +151,40 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
 
     console.log(`[zinc] 启动壳，加载: ${devUrl}`);
 
-    const shellArgs = ["--dev-url", devUrl, "--app-config", JSON.stringify(options)];
-    const shell = spawn(shellPath, shellArgs, { stdio: "ignore", detached: true });
+    // 构建配置，添加 dev_mode: true
+    const devConfig = {
+      ...options,
+      dev_mode: true,
+    };
+
+    const shellArgs = ["--dev-url", devUrl, "--app-config", JSON.stringify(devConfig)];
+    console.log(`[zinc] 壳参数: ${shellArgs.join(" ")}`);
+    
+    const shell = spawn(shellPath, shellArgs, { 
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true 
+    });
     shellChild = shell;
     shell.unref();
 
+    // 捕获输出
+    shell.stdout?.on("data", (data) => {
+      console.log(`[shell] ${data.toString().trim()}`);
+    });
+    shell.stderr?.on("data", (data) => {
+      console.error(`[shell] ${data.toString().trim()}`);
+    });
+
     // 壳关闭时退出进程
-    shell.on("close", () => { process.exit(0) });
+    shell.on("close", (code) => { 
+      console.log(`[zinc] 壳已退出，退出码: ${code}`);
+      process.exit(code || 0); 
+    });
+
+    // 壳启动错误
+    shell.on("error", (err) => {
+      console.error(`[zinc] 壳启动失败: ${err.message}`);
+    });
 
     // Ctrl+C 时杀壳
     process.on("SIGINT", () => {
