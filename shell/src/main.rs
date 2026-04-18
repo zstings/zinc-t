@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -22,11 +22,28 @@ const OFFSET_SIZE: usize = 8;
 
 static APP_CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
+#[derive(Deserialize)]
+struct CliAppConfig {
+    /** 应用名称 */
+    name: Option<String>,
+    /** 应用标识符，用于存储用户数据目录 (e.g. com.example.myapp) */
+    identifier: Option<String>,
+    /** 应用图标路径 */
+    icon: Option<String>,
+    /** 窗口配置 */
+    window: Option<serde_json::Value>,
+    /** 应用版本号 */
+    version: Option<String>,
+    /** 是否显示详细日志 */
+    verbose: Option<bool>
+}
+
 struct AppConfig {
     dev_mode: bool,
     identifier: String,
     name: String,
     version: String,
+    window: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -123,6 +140,7 @@ fn main() {
     let mut dev_mode = false;
     let mut dev_dir = None;
     let mut dev_url = None;
+    let mut cli_app_config: Option<String> = None;
     let mut cli_identifier: Option<String> = None;
 
     let mut i = 1;
@@ -149,9 +167,23 @@ fn main() {
                     i += 1;
                 }
             }
-            "--identifier" => {
+            "--app-config" => {
                 if i + 1 < args.len() {
-                    cli_identifier = Some(args[i + 1].clone());
+                    let config_json = &args[i + 1];
+                    cli_app_config = Some(config_json.clone());
+                    if let Ok(cli_config) = serde_json::from_str::<CliAppConfig>(config_json) {
+                        let identifier = cli_config.identifier.clone().unwrap_or_else(|| "com.zinc.app".to_string());
+                        let name = cli_config.name.clone().unwrap_or_else(|| "Zinc".to_string());
+                        let version = cli_config.version.clone().unwrap_or_else(|| "1.0.0".to_string());
+                        let window = cli_config.window.clone();
+                        APP_CONFIG.set(AppConfig {
+                            dev_mode,
+                            identifier,
+                            name,
+                            version,
+                            window,
+                        }).ok();
+                    }
                     i += 2;
                 } else {
                     i += 1;
@@ -179,6 +211,11 @@ fn main() {
         }
     }
 
+    // 打印 app-config
+    if let Some(app_config) = cli_app_config {
+        println!("app-config: {}", app_config);
+    }
+
     // cli 参数优先，否则从嵌入资源中读取
     let identifier = cli_identifier.or_else(|| {
         resources.as_ref().and_then(|r| r.get_meta("__zinc_identifier__")).map(|s| s.to_string())
@@ -191,6 +228,7 @@ fn main() {
         identifier: identifier.clone().unwrap_or_else(|| "com.zinc.app".to_string()),
         name: app_name,
         version: "1.0.0".to_string(),
+        window: None,
     }).ok();
 
     #[cfg(target_os = "windows")]
