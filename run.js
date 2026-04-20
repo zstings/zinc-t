@@ -11,21 +11,13 @@
 import { watch } from "fs";
 import { spawn } from "child_process";
 
-// 配置
-const DEV_CONFIG = [
-  {
-    name: "Rust Shell",
-    path: "./shell/src",
-    debounce: 1000,
-    build: buildShellDev,
-  },
-  {
-    name: "TypeScript Source",
-    path: "./src",
-    debounce: 500,
-    build: buildTypeScript,
-  },
+// 监视配置
+const WATCH_PATHS = [
+  { path: "./shell/src", name: "Rust Shell" },
+  { path: "./src", name: "TypeScript Source" },
 ];
+
+const DEBOUNCE_MS = 500;
 
 /**
  * 执行命令（返回 Promise）
@@ -90,11 +82,23 @@ async function buildTypeScript() {
 }
 
 /**
+ * 开发模式：完整构建
+ */
+async function devBuild() {
+  const startTime = Date.now();
+  try {
+    await buildShellDev();
+    await buildTypeScript();
+    console.log(`\n✅ 全部构建完成 (${Date.now() - startTime}ms)\n`);
+  } catch (error) {
+    console.error(`\n❌ 构建失败: ${error.message}\n`);
+  }
+}
+
+/**
  * 创建监视器（开发模式）
  */
-function createWatcher(config) {
-  const { name, path: watchPath, debounce, build } = config;
-
+function createWatcher(watchPath, name, onChange) {
   let debounceTimer = null;
   let isBuilding = false;
 
@@ -110,22 +114,14 @@ function createWatcher(config) {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
         if (isBuilding) {
-          console.log(`[${new Date().toLocaleTimeString()}] ⏳ ${name} 正在构建中，跳过...`);
+          console.log(`[${new Date().toLocaleTimeString()}] ⏳ 正在构建中，跳过...`);
           return;
         }
 
         isBuilding = true;
-        const startTime = Date.now();
-
-        try {
-          await build();
-          console.log(`[${new Date().toLocaleTimeString()}] ✅ ${name} 构建成功 (${Date.now() - startTime}ms)`);
-        } catch (error) {
-          console.log(`[${new Date().toLocaleTimeString()}] ❌ ${name} 构建失败: ${error.message}`);
-        } finally {
-          isBuilding = false;
-        }
-      }, debounce);
+        await onChange();
+        isBuilding = false;
+      }, DEBOUNCE_MS);
     });
 
     console.log(`👀 正在监视: ${watchPath}`);
@@ -150,10 +146,10 @@ function devMode() {
 
   const watchers = new Map();
 
-  for (const config of DEV_CONFIG) {
-    const watcher = createWatcher(config);
+  for (const { path, name } of WATCH_PATHS) {
+    const watcher = createWatcher(path, name, devBuild);
     if (watcher) {
-      watchers.set(config.name, watcher);
+      watchers.set(name, watcher);
     }
   }
 
