@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zinc Demo</title>
+  <title>Vokex Demo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -40,18 +40,18 @@
   </style>
 </head>
 <body>
-  <h1>🎉 Zinc 应用</h1>
-  <p>这是一个使用 Zinc 构建的原生桌面应用</p>
-  <button id="test-btn">测试 Zinc API</button>
+  <h1>🎉 Vokex 应用</h1>
+  <p>这是一个使用 Vokex 构建的原生桌面应用</p>
+  <button id="test-btn">测试 Vokex API</button>
 
   <script type="module">
-    import { os, process, app } from 'zinc';
+    import { os, process, app } from 'vokex';
 
     // 监听按钮点击事件
-    document.getElementById('test-btn').addEventListener('click', testZincAPI);
+    document.getElementById('test-btn').addEventListener('click', testVokexAPI);
 
-    // 测试 Zinc API
-    async function testZincAPI() {
+    // 测试 Vokex API
+    async function testVokexAPI() {
       try {
         // 测试 os API - 新的调用方式
         const osInfo = await os.platform();
@@ -65,7 +65,7 @@
         const appName = await app.name();
         console.log('App Name:', appName);
 
-        alert(`Zinc API 测试成功！\nOS: ${osInfo}\nPID: ${pid}\nApp Name: ${appName}`);
+        alert(`Vokex API 测试成功！\nOS: ${osInfo}\nPID: ${pid}\nApp Name: ${appName}`);
       } catch (error) {
         console.error('API 测试失败:', error);
         alert('API 测试失败: ' + error.message);

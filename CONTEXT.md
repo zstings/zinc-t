@@ -1,15 +1,15 @@
-# Zinc - 项目上下文文档
+# Vokex - 项目上下文文档
 
 > 将此文档粘贴给 Trae 编辑器的 AI，它将获得完整的项目上下文。
 
 ## 一、项目概述
 
-**Zinc** 是一个超轻量级桌面应用构建库，让前端开发者能够使用 Vite 创建 Web 项目，安装这个包后，`npm run build` 自动将前端构建产物打包成一个原生可执行文件（.exe/.app）。
+**Vokex** 是一个超轻量级桌面应用构建库，让前端开发者能够使用 Vite 创建 Web 项目，安装这个包后，`npm run build` 自动将前端构建产物打包成一个原生可执行文件（.exe/.app）。
 
 ### 核心特性
 
 - **超轻量**：构建产物最小 ~3MB，仅依赖系统 WebView
-- **零 Rust 门槛**：`npm install zinc` 即可使用，不需要 Rust 工具链
+- **零 Rust 门槛**：`npm install vokex` 即可使用，不需要 Rust 工具链
 - **Vite 原生集成**：Vite 插件自动接管构建流程
 - **单文件输出**：前端资源嵌入到可执行文件中
 - **双模式运行**：开发时在浏览器中调试，生产时在原生壳中运行
@@ -20,10 +20,10 @@
 ```
 ┌─────────────────────────────────┐
 │  前端代码 (HTML/JS/CSS)          │
-│  import { window, fs } from "zinc" │
+│  import { window, fs } from "vokex" │
 ├─────────────────────────────────┤
 │  运行时 Bridge (注入 JS)         │
-│  window.__ZINC__.call("fs.read")   │
+│  window.__VOKEX__.call("fs.read")   │
 ├─────────────────────────────────┤
 │  IPC: postMessage ↔ evaluate    │
 ├─────────────────────────────────┤
@@ -39,21 +39,21 @@
 **技术栈**：
 - **Rust 壳**：使用 wry 0.55（WebView）+ tao 0.34（窗口管理），负责创建窗口、加载前端资源、处理 IPC
 - **TypeScript 构建工具**：负责将 Vite 的 dist/ 嵌入到 Rust 壳二进制文件尾部
-- **TypeScript 运行时 API**：前端通过 `import { window, fs, os } from "zinc"` 调用原生 API
+- **TypeScript 运行时 API**：前端通过 `import { window, fs, os } from "vokex"` 调用原生 API
 - **Vite 插件**：在 `closeBundle` 钩子中自动触发构建
 
 ### 项目目录结构
 
 ```
-zinc/
+vokex/
 ├── shell/                    # Rust 壳
 │   ├── Cargo.toml           # Rust 依赖配置
 │   ├── src/main.rs          # 壳的全部代码（单文件，约 500+ 行）
 │   └── target/              # Rust 编译输出
 │       └── release/
-│           └── zinc-shell.exe  # 编译后的壳
+│           └── vokex-shell.exe  # 编译后的壳
 ├── src/                      # TypeScript 核心代码
-│   ├── index.ts              # 主入口，导出 build 和 zincPlugin
+│   ├── index.ts              # 主入口，导出 build 和 vokexPlugin
 │   ├── cli.ts                # CLI 工具（build/validate/dev 命令）
 │   ├── build/embed.ts        # 资源嵌入引擎
 │   ├── vite-plugin/index.ts  # Vite 插件
@@ -68,7 +68,7 @@ zinc/
 │   ├── vite.config.ts        # 示例 Vite 配置
 │   ├── dist/                 # 示例构建产物
 │   └── release/              # 示例原生应用输出
-│       └── Zinc Demo.exe     # 构建的可执行文件
+│       └── Vokex Demo.exe    # 构建的可执行文件
 ├── package.json              # npm 包配置
 ├── tsconfig.json             # TypeScript 配置
 ├── README.md                 # 使用文档
@@ -83,16 +83,16 @@ zinc/
 
 导出核心功能：
 - `build()` - 构建原生可执行文件
-- `zincPlugin()` - Vite 插件
-- 类型定义：`BuildResult`, `ValidateResult`, `ZincPluginOptions`
+- `vokexPlugin()` - Vite 插件
+- 类型定义：`BuildResult`, `ValidateResult`, `VokexPluginOptions`
 
 #### 2.1.2 CLI 工具 (src/cli.ts)
 
 提供三个命令：
 
-**1. `zinc build`** - 构建原生可执行文件
+**1. `vokex build`** - 构建原生可执行文件
 ```bash
-zinc build -i dist -n "我的应用" --width 1200 --height 800
+vokex build -i dist -n "我的应用" --width 1200 --height 800
 ```
 选项：
 - `-i, --input <dir>` - 前端构建产物目录（默认: dist）
@@ -111,14 +111,14 @@ zinc build -i dist -n "我的应用" --width 1200 --height 800
 - `--always-on-top <bool>` - 是否置顶（默认: false）
 - `-v, --verbose` - 显示详细日志
 
-**2. `zinc validate`** - 验证二进制文件
+**2. `vokex validate`** - 验证二进制文件
 ```bash
-zinc validate release/my-app.exe
+vokex validate release/my-app.exe
 ```
 
-**3. `zinc dev`** - 开发模式
+**3. `vokex dev`** - 开发模式
 ```bash
-zinc dev --dir .
+vokex dev --dir .
 ```
 启动 Vite 开发服务器 + 壳加载开发服务器，实现热重载。
 
@@ -133,7 +133,7 @@ zinc dev --dir .
 
 **资源嵌入格式**：
 ```
-[MAGIC "ZINC"(4B)] [索引长度(4B, u32 LE)] [索引JSON] [zlib压缩的资源数据] [资源起始偏移量(8B, u64 LE)]
+[MAGIC "VOKEX"(5B)] [索引长度(4B, u32 LE)] [索引JSON] [zlib压缩的资源数据] [资源起始偏移量(8B, u64 LE)]
 ```
 
 索引格式示例：
@@ -141,14 +141,14 @@ zinc dev --dir .
 {
   "index.html": [0, 1234],
   "assets/main.js": [1234, 5678],
-  "__zinc_name__": "我的应用",
-  "__zinc_identifier__": "com.example.myapp"
+  "__vokex_name__": "我的应用",
+  "__vokex_identifier__": "com.example.myapp"
 }
 ```
 
 **验证功能**：
 - 读取 exe 末尾 8 字节获取偏移量
-- 验证魔数 "ZINC"
+- 验证魔数 "VOKEX"
 - 读取索引和压缩数据
 - 返回文件数量和原始大小
 
@@ -158,11 +158,11 @@ zinc dev --dir .
 
 ```ts
 // vite.config.ts
-import { zincPlugin } from "zinc/vite-plugin";
+import { vokexPlugin } from "vokex/vite-plugin";
 
 export default defineConfig({
   plugins: [
-    zincPlugin({
+    vokexPlugin({
       name: "我的应用",
       identifier: "com.example.myapp",
       window: {
@@ -192,14 +192,14 @@ export default defineConfig({
 
 **开发模式支持**：
 - 在 `configureServer` 钩子中输出服务器端口和标识符
-- CLI 的 `zinc dev` 命令会读取这些信息并启动壳
+- CLI 的 `vokex dev` 命令会读取这些信息并启动壳
 
 #### 2.1.5 运行时 API (src/runtime/index.ts)
 
-前端通过 `window.__ZINC__` 对象调用原生 API：
+前端通过 `window.__VOKEX__` 对象调用原生 API：
 
 ```ts
-interface ZincAPI {
+interface VokexAPI {
   call: (method: string, args: any[]) => Promise<any>;
   __emit__: (event: string, data?: any) => void;
   on: (event: string, listener: (data: any) => void) => void;
@@ -249,7 +249,7 @@ panic = "abort"          # panic 时直接终止
 - 使用 flate2 解压资源
 
 **2. 自定义协议**
-- 注册 `zinc://` 协议
+- 注册 `vokex://` 协议
 - 根据路径从资源中读取文件
 - 自动推断 MIME 类型
 
@@ -272,12 +272,12 @@ panic = "abort"          # panic 时直接终止
 壳启动时通过 `with_initialization_script` 注入：
 
 ```javascript
-// 前端调用：window.__ZINC__.call("window.setTitle", ["Hello"])
+// 前端调用：window.__VOKEX__.call("window.setTitle", ["Hello"])
 // 实际通过 IPC 发送：window.ipc.postMessage(JSON.stringify({id, method, args}))
-// 壳返回结果：window.__ZINC__.__resolve__(id, code, message, data)
+// 壳返回结果：window.__VOKEX__.__resolve__(id, code, message, data)
 
 // 事件推送：壳通过 evaluate_script 调用
-// window.__ZINC__.__emit__("window.resized", {width: 800, height: 600})
+// window.__VOKEX__.__emit__("window.resized", {width: 800, height: 600})
 ```
 
 ## 三、完整的 API 列表
@@ -313,18 +313,18 @@ panic = "abort"          # panic 时直接终止
 ```bash
 npm create vite@latest my-app -- --template vanilla
 cd my-app
-npm install zinc
+npm install vokex
 ```
 
 **2. 配置 Vite**
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { zincPlugin } from "zinc/vite-plugin";
+import { vokexPlugin } from "vokex/vite-plugin";
 
 export default defineConfig({
   plugins: [
-    zincPlugin({
+    vokexPlugin({
       name: "我的应用",
       identifier: "com.example.myapp",
       window: {
@@ -341,14 +341,14 @@ export default defineConfig({
 **3. 使用 API**
 ```html
 <script type="module">
-  // 测试 Zinc API
-  async function testZincAPI() {
+  // 测试 Vokex API
+  async function testVokexAPI() {
     // 测试 os API
-    const osInfo = await window.__ZINC__.call('os.platform', []);
+    const osInfo = await window.__VOKEX__.call('os.platform', []);
     console.log('OS:', osInfo);
     
     // 测试 process API
-    const pid = await window.__ZINC__.call('process.pid', []);
+    const pid = await window.__VOKEX__.call('process.pid', []);
     console.log('PID:', pid);
   }
 </script>
@@ -357,7 +357,7 @@ export default defineConfig({
 **4. 构建打包**
 ```bash
 npm run build
-# Vite 构建完成后，zinc 插件自动将 dist/ 嵌入到可执行文件
+# Vite 构建完成后，vokex 插件自动将 dist/ 嵌入到可执行文件
 # 输出到 release/ 目录
 ```
 
@@ -368,20 +368,20 @@ npm run build
 npm run dev
 
 # 方式 2：使用原生壳 + Vite 开发服务器
-npx zinc dev --dir .
+npx vokex dev --dir .
 ```
 
 ### 4.3 CLI 使用
 
 ```bash
 # 构建原生应用
-zinc build -i dist -n "我的应用" --width 1200 --height 800
+vokex build -i dist -n "我的应用" --width 1200 --height 800
 
 # 验证二进制文件
-zinc validate release/my-app.exe
+vokex validate release/my-app.exe
 
 # 开发模式
-zinc dev --dir .
+vokex dev --dir .
 ```
 
 ## 五、项目状态
@@ -398,11 +398,11 @@ zinc dev --dir .
 2. **Rust 壳**
    - ✅ 基础框架 (shell/src/main.rs)
    - ✅ 资源加载（从 exe 尾部读取）
-   - ✅ 自定义协议 `zinc://`
+   - ✅ 自定义协议 `vokex://`
    - ✅ IPC 通信框架
    - ✅ 窗口管理
    - ✅ 开发模式支持（`--dev-url`）
-   - ✅ 编译成功，生成 zinc-shell.exe
+   - ✅ 编译成功，生成 vokex-shell.exe
 
 3. **构建系统**
    - ✅ TypeScript 编译配置 (tsconfig.json)
@@ -414,7 +414,7 @@ zinc dev --dir .
    - ✅ 完整的示例 (example/)
    - ✅ Vite 配置示例
    - ✅ API 使用示例
-   - ✅ 成功构建出可执行文件 (release/Zinc Demo.exe)
+   - ✅ 成功构建出可执行文件 (release/Vokex Demo.exe)
 
 ### 待完善 ⚠️
 
@@ -452,7 +452,7 @@ cargo build --release
 # 4. 复制预编译壳
 cd ..
 mkdir -p prebuilt/win32-x64
-cp shell/target/release/zinc-shell.exe prebuilt/win32-x64/shell.exe
+cp shell/target/release/vokex-shell.exe prebuilt/win32-x64/shell.exe
 
 # 5. 测试示例
 cd example
@@ -470,7 +470,7 @@ npm run dev
 
 # 方式 2：原生壳 + 开发服务器
 cd example
-npx zinc dev --dir .
+npx vokex dev --dir .
 ```
 
 ### 6.3 发布流程
@@ -483,7 +483,7 @@ npm run build
 cd shell && cargo build --release
 
 # 3. 更新预编译壳
-cp shell/target/release/zinc-shell.exe prebuilt/win32-x64/shell.exe
+cp shell/target/release/vokex-shell.exe prebuilt/win32-x64/shell.exe
 
 # 4. 测试示例
 cd ../example && npm run build
@@ -516,7 +516,7 @@ npm publish
 2. **运行时**：
    - 从 exe 末尾读取 8 字节偏移量
    - 定位到资源起始位置
-   - 验证魔数 "ZINC"
+   - 验证魔数 "VOKEX"
    - 读取索引长度和索引 JSON
    - 读取压缩数据并解压
    - 根据请求路径从索引中查找文件
@@ -525,7 +525,7 @@ npm publish
 
 1. **前端调用**：
    ```javascript
-   window.__ZINC__.call("window.setTitle", ["Hello"])
+   window.__VOKEX__.call("window.setTitle", ["Hello"])
    ```
 
 2. **Bridge 注入代码**：
@@ -546,7 +546,7 @@ npm publish
 4. **返回结果**：
    ```javascript
    webview.evaluate_script(
-     `window.__ZINC__.__resolve__("unique-id", 0, "success", "result")`
+     `window.__VOKEX__.__resolve__("unique-id", 0, "success", "result")`
    )
    ```
 
@@ -557,7 +557,7 @@ npm publish
 - **Rust 壳**：~655 KB (release 模式，strip + lto)
 - **前端资源**：根据项目大小而定
 - **最终可执行文件**：壳 + 压缩后的前端资源
-- **示例应用**：657 KB (Zinc Demo.exe)
+- **示例应用**：657 KB (Vokex Demo.exe)
 
 ### 8.2 压缩效果
 
@@ -572,8 +572,8 @@ npm publish
 
 ## 九、与其他方案对比
 
-| 特性 | Zinc | Electron | Tauri |
-|------|------|----------|-------|
+| 特性 | Vokex | Electron | Tauri |
+|------|-------|----------|-------|
 | 构建产物大小 | ~3 MB | ~150 MB | ~10 MB |
 | 运行时依赖 | 系统 WebView | Chromium | 系统 WebView |
 | 开发语言 | TypeScript + Rust | JavaScript | TypeScript + Rust |
@@ -582,13 +582,13 @@ npm publish
 | 性能 | 高 | 中 | 高 |
 | 跨平台 | Windows/macOS/Linux | Windows/macOS/Linux | Windows/macOS/Linux |
 
-**Zinc 优势**：
+**Vokex 优势**：
 - 最小的构建产物
 - 零 Rust 门槛（使用预编译壳）
 - 完美集成 Vite 工作流
 - 单文件输出，部署简单
 
-**Zinc 劣势**：
+**Vokex 劣势**：
 - API 相对较少
 - 社区生态较小
 - 部分高级功能未实现
@@ -620,6 +620,6 @@ npm publish
 
 ---
 
-**最后更新**：2026-04-17
+**最后更新**：2026-04-20
 **版本**：0.1.0
-**作者**：Zinc Team
+**作者**：Vokex Team

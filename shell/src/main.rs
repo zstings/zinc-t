@@ -18,8 +18,8 @@ use tao::dpi::LogicalSize;
 use wry::http::Response;
 use wry::{WebView, WebViewBuilder, WebContext};
 
-const MAGIC: &[u8] = b"ZINC";
-const MAGIC_SIZE: usize = 4;
+const MAGIC: &[u8] = b"VOKEX";
+const MAGIC_SIZE: usize = 5;
 const INDEX_LENGTH_SIZE: usize = 4;
 const OFFSET_SIZE: usize = 8;
 
@@ -202,7 +202,7 @@ fn main() {
         .unwrap();
 
     let init_script = r#"
-    window.__ZINC__ = {
+    window.__VOKEX__ = {
         __callbacks: {},
         __nextId: 0,
         call: function(method, args) {
@@ -259,7 +259,7 @@ fn main() {
     let initial_url = if let Some(ref url) = dev_url {
         url.clone()
     } else {
-        "zinc://index.html".to_string()
+        "vokex://index.html".to_string()
     };
 
     let webview = if dev_url.is_some() {
@@ -283,7 +283,7 @@ fn main() {
             .with_initialization_script(init_script)
             .with_url(&initial_url)
             .with_devtools(dev_mode)
-            .with_custom_protocol("zinc".to_string(), move |_webview_id, request| {
+            .with_custom_protocol("vokex".to_string(), move |_webview_id, request| {
                 let uri = request.uri();
                 let path = uri.path().trim_start_matches('/');
                 let path = if path.is_empty() { "index.html" } else { path };
@@ -356,7 +356,7 @@ fn main() {
                     WindowEvent::CloseRequested => {
                         if let Ok(webview_guard) = webview.lock() {
                             if let Some(ref webview) = *webview_guard {
-                                webview.evaluate_script("window.__ZINC__.__emit('window.closed', {})").unwrap_or(());
+                                webview.evaluate_script("window.__VOKEX__.__emit('window.closed', {})").unwrap_or(());
                             }
                         }
                         *control_flow = tao::event_loop::ControlFlow::Exit;
@@ -364,7 +364,7 @@ fn main() {
                     WindowEvent::Resized(size) => {
                         if let Ok(webview_guard) = webview.lock() {
                             if let Some(ref webview) = *webview_guard {
-                                let script = format!("window.__ZINC__.__emit('window.resized', {{width: {}, height: {}}})", size.width, size.height);
+                                let script = format!("window.__VOKEX__.__emit('window.resized', {{width: {}, height: {}}})", size.width, size.height);
                                 webview.evaluate_script(&script).unwrap_or(());
                             }
                         }
@@ -393,7 +393,7 @@ fn handle_ipc_message(webview: &WebView, message: wry::http::Request<String>) {
         };
 
         let script = format!(
-            "window.__ZINC__.__resolve('{}', {}, '{}', {})",
+            "window.__VOKEX__.__resolve('{}', {}, '{}', {})",
             ipc_message.id,
             code,
             message,

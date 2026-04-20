@@ -48,14 +48,14 @@ fn load_prod_config() -> AppConfigSx {
     let resources = Resources::load_from_exe(&exe_path)
         .expect("Failed to load resources from exe");
     
-    let config_bytes = resources.get(".zinc-cli-data.json")
-        .expect(".zinc-cli-data.json not found in resources");
-    
+    let config_bytes = resources.get(".vokex-cli-data.json")
+        .expect(".vokex-cli-data.json not found in resources");
+
     let config_json = String::from_utf8(config_bytes.to_vec())
-        .expect(".zinc-cli-data.json is not valid UTF-8");
-    
+        .expect(".vokex-cli-data.json is not valid UTF-8");
+
     serde_json::from_str(&config_json)
-        .expect("Failed to parse zinc-cli-data.json")
+        .expect("Failed to parse vokex-cli-data.json")
 }
 
 pub fn get_config() -> &'static AppConfigSx {

@@ -1,15 +1,15 @@
 import { defineConfig } from "vite";
-import { zincPlugin } from "zinc/vite-plugin";
+import { vokexPlugin } from "vokex/vite-plugin";
 import { version } from "./package.json";
 
 export default defineConfig({
   plugins: [
-    zincPlugin({
-      name: "Zinc Demo",
-      identifier: "com.zinc.zinc-demo",
+    vokexPlugin({
+      name: "Vokex Demo",
+      identifier: "com.vokex.vokex-demo",
       version: version,
       window: {
-        title: "Zinc App Demo",
+        title: "Vokex App Demo",
         width: 1200,
         height: 800,
         center: true,

@@ -1,5 +1,5 @@
 /**
- * zinc 框架 - 资源嵌入构建器
+ * vokex 框架 - 资源嵌入构建器
  *
  * 将前端构建产物嵌入到预编译壳二进制文件中
  */
@@ -10,8 +10,8 @@ import { resolve, relative } from "path";
 import { createHash } from "crypto";
 import { createDeflate } from "zlib";
 
-/** 魔数：ZINC */
-const MAGIC = Buffer.from("ZINC");
+/** 魔数：VOKEX */
+const MAGIC = Buffer.from("VOKEX");
 /** 索引长度字段大小（4字节） */
 const INDEX_LENGTH_SIZE = 4;
 /** 偏移量字段大小（8字节） */
@@ -177,10 +177,10 @@ export async function build(options: {
     verbose = false,
   } = options;
 
-  if (verbose) console.log(`[zinc] 读取壳二进制: ${shellPath}`);
+  if (verbose) console.log(`[vokex] 读取壳二进制: ${shellPath}`);
   const shellBuffer = await readFile(shellPath);
 
-  if (verbose) console.log(`[zinc] 扫描资源目录: ${inputDir}`);
+  if (verbose) console.log(`[vokex] 扫描资源目录: ${inputDir}`);
   const files = await scanDir(inputDir);
 
   // 按文件名排序以确保一致性
@@ -190,7 +190,7 @@ export async function build(options: {
 
   if (verbose)
     console.log(
-      `[zinc] 找到 ${files.size} 个文件，总大小 ${(
+      `[vokex] 找到 ${files.size} 个文件，总大小 ${(
         files.size /
         1024
       ).toFixed(1)} KB`
@@ -216,15 +216,15 @@ export async function build(options: {
   offsetBuffer.writeBigUInt64LE(BigInt(shellBuffer.length));
 
   // 合并所有文件数据
-  if (verbose) console.log(`[zinc] 压缩资源...`);
+  if (verbose) console.log(`[vokex] 压缩资源...`);
   const rawData = Buffer.concat(rawChunks);
   const compressedData = await compress(rawData);
 
   if (verbose) {
-    console.log(`[zinc] 原始: ${(rawData.length / 1024).toFixed(1)} KB`);
-    console.log(`[zinc] 压缩后: ${(compressedData.length / 1024).toFixed(1)} KB`);
+    console.log(`[vokex] 原始: ${(rawData.length / 1024).toFixed(1)} KB`);
+    console.log(`[vokex] 压缩后: ${(compressedData.length / 1024).toFixed(1)} KB`);
     console.log(
-      `[zinc] 压缩率: ${((1 - compressedData.length / rawData.length) * 100).toFixed(1)}%`
+      `[vokex] 压缩率: ${((1 - compressedData.length / rawData.length) * 100).toFixed(1)}%`
     );
   }
 
@@ -246,16 +246,16 @@ export async function build(options: {
   // 写入输出文件
   await writeFile(outputPath, Buffer.concat([shellBuffer, tail]));
 
-  console.log(`[zinc] ✅ 构建成功!`);
-  console.log(`[zinc]    文件数: ${sortedFiles.length}`);
+  console.log(`[vokex] ✅ 构建成功!`);
+  console.log(`[vokex]    文件数: ${sortedFiles.length}`);
   console.log(
-    `[zinc]    资源: ${(rawData.length / 1024).toFixed(1)} KB → ${(
+    `[vokex]    资源: ${(rawData.length / 1024).toFixed(1)} KB → ${(
       compressedData.length /
       1024
     ).toFixed(1)} KB (${((1 - compressedData.length / rawData.length) * 100).toFixed(0)}% 压缩)`
   );
   console.log(
-    `[zinc]    输出: ${outputPath} (${(shellBuffer.length / 1024 / 1024).toFixed(2)} MB)`
+    `[vokex]    输出: ${outputPath} (${(shellBuffer.length / 1024 / 1024).toFixed(2)} MB)`
   );
 
   return {

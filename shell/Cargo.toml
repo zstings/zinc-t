@@ -1,8 +1,8 @@
 [package]
-name = "zinc-shell"
+name = "vokex-shell"
 version = "0.1.0"
 edition = "2021"
-description = "Lightweight native shell for the 'zinc' desktop framework"
+description = "Lightweight native shell for the 'vokex' desktop framework"
 
 [dependencies]
 wry = "0.55"

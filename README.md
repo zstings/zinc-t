@@ -1,11 +1,11 @@
-# Zinc
+# Vokex
 
 超轻量级桌面应用构建库。Vite 构建后一键打包为原生可执行文件。
 
 ## 特性
 
 - **超轻量**：构建产物最小 ~3MB，仅依赖系统 WebView
-- **零 Rust 门槛**：`npm install zinc` 即可使用，不需要 Rust 工具链
+- **零 Rust 门槛**：`npm install vokex` 即可使用，不需要 Rust 工具链
 - **Vite 原生集成**：Vite 插件自动接管构建流程
 - **单文件输出**：前端资源嵌入到可执行文件中
 - **双模式运行**：开发时在浏览器中调试，生产时在原生壳中运行
@@ -18,7 +18,7 @@
 ```bash
 npm create vite@latest my-app -- --template vanilla
 cd my-app
-npm install zinc
+npm install vokex
 ```
 
 ### 2. 配置 Vite
@@ -26,11 +26,11 @@ npm install zinc
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { zincPlugin } from "zinc/vite-plugin";
+import { vokexPlugin } from "vokex/vite-plugin";
 
 export default defineConfig({
   plugins: [
-    zincPlugin({
+    vokexPlugin({
       name: "我的应用",
       identifier: "com.example.myapp",
       window: {
@@ -48,18 +48,18 @@ export default defineConfig({
 
 ```html
 <script type="module">
-  // 测试 Zinc API
+  // 测试 Vokex API
   async function testAPI() {
     // 获取系统信息
-    const platform = await window.__ZINC__.call('os.platform', []);
+    const platform = await window.__VOKEX__.call('os.platform', []);
     console.log('Platform:', platform);
 
     // 获取进程 ID
-    const pid = await window.__ZINC__.call('process.pid', []);
+    const pid = await window.__VOKEX__.call('process.pid', []);
     console.log('PID:', pid);
 
     // 设置窗口标题
-    await window.__ZINC__.call('window.setTitle', ['我的应用']);
+    await window.__VOKEX__.call('window.setTitle', ['我的应用']);
   }
 
   testAPI();
@@ -70,14 +70,14 @@ export default defineConfig({
 
 ```bash
 npm run build
-# Vite 构建完成后，zinc 插件自动将 dist/ 嵌入到可执行文件
+# Vite 构建完成后，vokex 插件自动将 dist/ 嵌入到可执行文件
 # 输出到 release/ 目录
 ```
 
 或使用 CLI：
 
 ```bash
-npx zinc build -i dist -n "我的应用" --width 1200 --height 800
+npx vokex build -i dist -n "我的应用" --width 1200 --height 800
 ```
 
 ### 5. 开发模式
@@ -87,7 +87,7 @@ npx zinc build -i dist -n "我的应用" --width 1200 --height 800
 npm run dev
 
 # 方式 2：原生壳 + 开发服务器
-npx zinc dev --dir .
+npx vokex dev --dir .
 ```
 
 ## 架构
@@ -95,10 +95,10 @@ npx zinc dev --dir .
 ```
 ┌─────────────────────────────────┐
 │  前端代码 (HTML/JS/CSS)          │
-│  import { window, fs } from "zinc" │
+│  import { window, fs } from "vokex" │
 ├─────────────────────────────────┤
 │  运行时 Bridge (注入 JS)         │
-│  window.__ZINC__.call("fs.read")   │
+│  window.__VOKEX__.call("fs.read")   │
 ├─────────────────────────────────┤
 │  IPC: postMessage ↔ evaluate    │
 ├─────────────────────────────────┤
@@ -116,7 +116,7 @@ npx zinc dev --dir .
 二进制文件尾部追加：
 
 ```
-[MAGIC(4B)] [索引长度(4B)] [索引JSON] [zlib压缩数据] [偏移量(8B)]
+[MAGIC(5B)] [索引长度(4B)] [索引JSON] [zlib压缩数据] [偏移量(8B)]
 ```
 
 索引格式：`{ "index.html": [offset, length], "assets/main.js": [offset, length] }`
@@ -128,8 +128,8 @@ npx zinc dev --dir .
 ```bash
 cd shell
 cargo build --release
-# 输出: shell/target/release/shell.exe (Windows)
-#       shell/target/release/shell     (macOS/Linux)
+# 输出: shell/target/release/vokex-shell.exe (Windows)
+#       shell/target/release/vokex-shell     (macOS/Linux)
 ```
 
 ## API 列表

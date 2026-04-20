@@ -1,17 +1,17 @@
 /**
- * zinc 框架 - Vite 插件
+ * vokex 框架 - Vite 插件
  *
  * 在 Vite 构建完成后，自动将前端资源嵌入到预编译壳中
  *
  * 用法：
  * ```ts
  * // vite.config.ts
- * import { zincPlugin } from "zinc/vite-plugin";
+ * import { vokexPlugin } from "vokex/vite-plugin";
  *
  * export default defineConfig({
  *   plugins: [
  *     vue(),
- *     zincPlugin({
+ *     vokexPlugin({
  *       name: "我的应用",
  *       window: { width: 1200, height: 800 },
  *     })
@@ -33,7 +33,7 @@ function getCurrentDir(): string {
 }
 
 /** Vite 插件配置 */
-export interface ZincPluginOptions {
+export interface VokexPluginOptions {
   /** 应用名称 */
   name: string;
   /** 应用标识符，用于存储用户数据目录 (e.g. com.example.myapp) */
@@ -85,7 +85,7 @@ function getPrebuiltShellPath(): string {
   const possiblePaths = [
     resolve(currentDir, `../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(currentDir, `../../prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
-    resolve(process.cwd(), `node_modules/zinc/prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
+    resolve(process.cwd(), `node_modules/vokex/prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
     resolve(process.cwd(), `prebuilt/${platformKey}/shell${platform === "win32" ? ".exe" : ""}`),
   ];
 
@@ -117,9 +117,9 @@ async function loadEmbedModule() {
 }
 
 /** 开发模式数据文件路径 */
-const DEV_DATA_FILE = ".zinc-cli-data.json";
+const DEV_DATA_FILE = ".vokex-cli-data.json";
 
-export function zincPlugin(options: ZincPluginOptions): Plugin {
+export function vokexPlugin(options: VokexPluginOptions): Plugin {
   let config: ResolvedConfig;
   let isDev = false;
   let shellChild: ChildProcess | null = null;
@@ -144,12 +144,12 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
     const shellPath = getShellPath();
 
     if (!existsSync(shellPath)) {
-      console.error(`[zinc] 壳文件不存在: ${shellPath}`);
-      console.error(`[zinc] 请先编译壳: cd shell && cargo build --release`);
+      console.error(`[vokex] 壳文件不存在: ${shellPath}`);
+      console.error(`[vokex] 请先编译壳: cd shell && cargo build --release`);
       return;
     }
 
-    console.log(`[zinc] 启动壳，加载: ${devUrl}`);
+    console.log(`[vokex] 启动壳，加载: ${devUrl}`);
 
     // 构建配置，添加 dev_mode: true
     const devConfig = {
@@ -158,7 +158,7 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
     };
 
     const shellArgs = ["--dev-url", devUrl, "--app-config", JSON.stringify(devConfig)];
-    console.log(`[zinc] 壳参数: ${shellArgs.join(" ")}`);
+    console.log(`[vokex] 壳参数: ${shellArgs.join(" ")}`);
     
     const shell = spawn(shellPath, shellArgs, { 
       stdio: ["ignore", "pipe", "pipe"],
@@ -176,14 +176,14 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
     });
 
     // 壳关闭时退出进程
-    shell.on("close", (code) => { 
-      console.log(`[zinc] 壳已退出，退出码: ${code}`);
-      process.exit(code || 0); 
+    shell.on("close", (code) => {
+      console.log(`[vokex] 壳已退出，退出码: ${code}`);
+      process.exit(code || 0);
     });
 
     // 壳启动错误
     shell.on("error", (err) => {
-      console.error(`[zinc] 壳启动失败: ${err.message}`);
+      console.error(`[vokex] 壳启动失败: ${err.message}`);
     });
 
     // Ctrl+C 时杀壳
@@ -202,7 +202,7 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
     const outputPath = getOutputPath();
 
     if (!existsSync(inputDir)) {
-      console.warn(`[zinc] 构建产物目录不存在: ${inputDir}`);
+      console.warn(`[vokex] 构建产物目录不存在: ${inputDir}`);
       return;
     }
 
@@ -215,9 +215,9 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
         verbose: options.verbose,
       });
 
-      console.log(`[zinc:build] OUTPUT_DIR=${result.outputPath}`);
+      console.log(`[vokex:build] OUTPUT_DIR=${result.outputPath}`);
     } catch (error: any) {
-      console.error(`[zinc] ❌ 构建失败: ${error.message}`);
+      console.error(`[vokex] ❌ 构建失败: ${error.message}`);
       if (options.verbose) {
         console.error(error.stack);
       }
@@ -226,7 +226,7 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
   }
 
   return {
-    name: "zinc-plugin",
+    name: "vokex-plugin",
 
     config(_, env) {
       isDev = env.command === "serve";
@@ -244,7 +244,7 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
         if (address && typeof address === "object" && "port" in address) {
           const port = address.port;
           const devUrl = `http://localhost:${port}`;
-          console.log(`[zinc] Vite 开发服务器已启动: ${devUrl}`);
+          console.log(`[vokex] Vite 开发服务器已启动: ${devUrl}`);
           // 启动壳
           startShell(devUrl);
         }
@@ -254,7 +254,7 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
     async closeBundle() {
       // 开发模式下跳过
       if (isDev && options.skipInDev !== false) {
-        console.log("[zinc] 开发模式，跳过原生构建");
+        console.log("[vokex] 开发模式，跳过原生构建");
         return;
       }
       // 构建配置，添加 dev_mode: false
@@ -269,5 +269,5 @@ export function zincPlugin(options: ZincPluginOptions): Plugin {
   };
 }
 
-// 为了保持兼容性，保留默认导出
-export default zincPlugin;
+// 默认导出
+export default vokexPlugin;
