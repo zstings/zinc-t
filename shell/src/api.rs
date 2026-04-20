@@ -90,9 +90,7 @@ fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
         "getVersion" => Ok(json!(config.version)),
         "getName" => Ok(json!(config.name)),
         "setName" => {
-            // 设置应用名称 - 在运行时修改（仅影响当前会话）
-            // 注意：实际实现需要与窗口标题同步
-            Ok(Value::Null)
+            Err("该功能实现待定".to_string())
         }
         "getLocale" => {
             // 获取系统语言标识
@@ -104,31 +102,54 @@ fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
 
         // macOS 特有功能
         "setDockBadge" => {
-            // macOS Dock 图标徽标 - 仅在 macOS 上有效
-            #[cfg(target_os = "macos")]
-            {
-                // TODO: 实现 macOS Dock 徽标设置
-            }
-            Ok(Value::Null)
+            Err("该功能实现待定".to_string())
         }
 
         // 单实例锁
         "requestSingleInstanceLock" => {
-            // 请求单实例锁，防止重复启动
-            // TODO: 实现单实例锁机制
-            Ok(json!(true))
-        }
-        "hasSingleInstanceLock" => {
-            // 检查是否持有单实例锁
-            // TODO: 实现单实例锁检查
-            Ok(json!(true))
+            use fs2::FileExt;
+            use std::fs::OpenOptions;
+            use std::io::Write;
+
+            let identifier = &config.identifier;
+            let lock_file_path = if cfg!(target_os = "windows") {
+                std::env::temp_dir().join(format!("{}.lock", identifier))
+            } else {
+                dirs::runtime_dir()
+                    .or_else(dirs::cache_dir)
+                    .unwrap_or_else(std::env::temp_dir)
+                    .join(format!("{}.lock", identifier))
+            };
+
+            // 打开或创建锁文件
+            let lock_file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&lock_file_path)
+                .map_err(|e| e.to_string())?;
+
+            // 尝试获取独占锁（非阻塞）
+            match lock_file.try_lock_exclusive() {
+                Ok(()) => {
+                    // 成功获取锁，写入 PID
+                    let pid = std::process::id();
+                    let _ = writeln!(&lock_file, "{}", pid);
+                    // 保持文件句柄打开，锁才会持续有效
+                    // 使用 Box::leak 让文件句柄在进程生命周期内保持打开
+                    let _ = Box::leak(Box::new(lock_file));
+                    Ok(json!(true))
+                }
+                Err(_) => {
+                    // 获取锁失败，说明已有实例在运行
+                    Ok(json!(false))
+                }
+            }
         }
 
         // 代理设置
         "setProxy" => {
-            // 设置应用代理
-            // TODO: 实现代理设置
-            Ok(Value::Null)
+            Err("该功能实现待定".to_string())
         }
 
         _ => Err(format!("Unknown app method: {}", method)),

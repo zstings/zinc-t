@@ -83,7 +83,27 @@ document.getElementById("btn-locale")?.addEventListener("click", async () => {
   }
 });
 
-// 5. 测试事件监听
+// 5. 单实例锁测试
+document.getElementById("btn-single-instance")?.addEventListener("click", async () => {
+  clear();
+  log("=== 单实例锁测试 ===");
+  log("尝试请求单实例锁...");
+  try {
+    const isFirstInstance = await app.requestSingleInstanceLock();
+    if (isFirstInstance) {
+      log("✅ 成功获取单实例锁！");
+      log("   当前是首个实例，可以正常运行。");
+      log("   提示：尝试再次启动应用，新实例会返回 false");
+    } else {
+      log("❌ 获取单实例锁失败！");
+      log("   已有实例在运行，当前实例应该退出。");
+    }
+  } catch (error: any) {
+    log(`错误: ${error.message}`);
+  }
+});
+
+// 6. 测试事件监听
 document.getElementById("btn-events")?.addEventListener("click", async () => {
   clear();
   log("=== 事件监听测试 ===");
@@ -94,7 +114,7 @@ document.getElementById("btn-events")?.addEventListener("click", async () => {
   log("提示: 关闭窗口时会触发 before-quit 事件");
 });
 
-// 6. 重启应用
+// 7. 重启应用
 document.getElementById("btn-restart")?.addEventListener("click", async () => {
   clear();
   log("正在重启应用...");
@@ -105,7 +125,7 @@ document.getElementById("btn-restart")?.addEventListener("click", async () => {
   }
 });
 
-// 7. 退出应用
+// 8. 退出应用
 document.getElementById("btn-quit")?.addEventListener("click", async () => {
   clear();
   log("正在退出应用...");
@@ -119,5 +139,5 @@ document.getElementById("btn-quit")?.addEventListener("click", async () => {
 // 页面加载完成后记录
 log("页面已加载");
 log(
-  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.hasSingleInstanceLock(), app.setProxy(config), app.on(event, callback)",
+  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.setProxy(config), app.on(event, callback)",
 );

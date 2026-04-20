@@ -60,17 +60,15 @@ export interface AppAPI {
   getVersion: () => Promise<string>;
   /** 获取应用名称 */
   getName: () => Promise<string>;
-  /** 设置应用名称 */
+  /** 设置应用名称（该功能实现待定） */
   setName: (name: string) => Promise<void>;
   /** 获取系统语言标识，如 zh-CN、en-US */
   getLocale: () => Promise<string>;
-  /** 设置 macOS Dock 图标徽标 */
+  /** 设置 macOS Dock 图标徽标（该功能实现待定） */
   setDockBadge: (text: string) => Promise<void>;
   /** 请求单实例锁，防止重复启动 */
   requestSingleInstanceLock: () => Promise<boolean>;
-  /** 检查是否持有单实例锁 */
-  hasSingleInstanceLock: () => Promise<boolean>;
-  /** 设置应用代理 */
+  /** 设置应用代理（该功能实现待定） */
   setProxy: (config: ProxyConfig) => Promise<void>;
   /** 监听应用事件 */
   on: (event: AppEvent, callback: (data?: any) => void) => void;
@@ -136,11 +134,6 @@ export const app: AppAPI = {
    * @returns true 表示当前是首个实例，false 表示已有实例运行
    */
   requestSingleInstanceLock: (): Promise<boolean> => vokexCall('app.requestSingleInstanceLock'),
-
-  /**
-   * 检查是否持有单实例锁
-   */
-  hasSingleInstanceLock: (): Promise<boolean> => vokexCall('app.hasSingleInstanceLock'),
 
   /**
    * 设置应用代理
