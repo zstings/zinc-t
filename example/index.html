@@ -11,10 +11,11 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      padding: 20px;
     }
     h1 {
       font-size: 3rem;
@@ -23,6 +24,13 @@
     p {
       font-size: 1.2rem;
       margin-bottom: 2rem;
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
     }
     button {
       padding: 10px 20px;
@@ -37,40 +45,149 @@
     button:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    #output {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
   <h1>🎉 Vokex 应用</h1>
   <p>这是一个使用 Vokex 构建的原生桌面应用</p>
-  <button id="test-btn">测试 Vokex API</button>
+
+  <div class="button-group">
+    <button id="btn-app-info">获取应用信息</button>
+    <button id="btn-app-paths">获取应用路径</button>
+    <button id="btn-system-paths">获取系统路径</button>
+    <button id="btn-locale">获取系统语言</button>
+    <button id="btn-events">测试事件监听</button>
+    <button id="btn-restart">重启应用</button>
+    <button id="btn-quit">退出应用</button>
+  </div>
+
+  <div id="output">点击按钮测试 Vokex app API...</div>
 
   <script type="module">
-    import { os, process, app } from 'vokex';
+    import { app } from 'vokex';
 
-    // 监听按钮点击事件
-    document.getElementById('test-btn').addEventListener('click', testVokexAPI);
+    const output = document.getElementById('output');
 
-    // 测试 Vokex API
-    async function testVokexAPI() {
-      try {
-        // 测试 os API - 新的调用方式
-        const osInfo = await os.platform();
-        console.log('OS:', osInfo);
-
-        // 测试 process API - 新的调用方式
-        const pid = await process.pid();
-        console.log('PID:', pid);
-
-        // 测试 app API - 新的调用方式
-        const appName = await app.name();
-        console.log('App Name:', appName);
-
-        alert(`Vokex API 测试成功！\nOS: ${osInfo}\nPID: ${pid}\nApp Name: ${appName}`);
-      } catch (error) {
-        console.error('API 测试失败:', error);
-        alert('API 测试失败: ' + error.message);
-      }
+    function log(message) {
+      output.textContent += message + '\n';
+      output.scrollTop = output.scrollHeight;
     }
+
+    function clear() {
+      output.textContent = '';
+    }
+
+    // 监听 app.ready 事件
+    app.on('ready', () => {
+      log('📢 事件: app.ready - 应用已就绪');
+    });
+
+    // 监听 app.before-quit 事件
+    app.on('before-quit', () => {
+      log('📢 事件: app.before-quit - 应用即将退出');
+    });
+
+    // 1. 获取应用信息
+    document.getElementById('btn-app-info').addEventListener('click', async () => {
+      clear();
+      log('=== 应用信息 ===');
+      try {
+        const name = await app.getName();
+        const version = await app.getVersion();
+        log(`应用名称: ${name}`);
+        log(`应用版本: ${version}`);
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 2. 获取应用路径
+    document.getElementById('btn-app-paths').addEventListener('click', async () => {
+      clear();
+      log('=== 应用路径 ===');
+      try {
+        const appPath = await app.getAppPath();
+        log(`应用路径: ${appPath}`);
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 3. 获取系统路径
+    document.getElementById('btn-system-paths').addEventListener('click', async () => {
+      clear();
+      log('=== 系统路径 ===');
+      try {
+        const paths = ['home', 'appData', 'desktop', 'documents', 'downloads', 'temp'];
+        for (const name of paths) {
+          const path = await app.getPath(name);
+          log(`${name}: ${path}`);
+        }
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 4. 获取系统语言
+    document.getElementById('btn-locale').addEventListener('click', async () => {
+      clear();
+      log('=== 系统语言 ===');
+      try {
+        const locale = await app.getLocale();
+        log(`系统语言: ${locale}`);
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 5. 测试事件监听
+    document.getElementById('btn-events').addEventListener('click', async () => {
+      clear();
+      log('=== 事件监听测试 ===');
+      log('已注册事件监听器:');
+      log('- app.ready: 应用初始化完成');
+      log('- app.before-quit: 应用即将退出');
+      log('');
+      log('提示: 关闭窗口时会触发 before-quit 事件');
+    });
+
+    // 6. 重启应用
+    document.getElementById('btn-restart').addEventListener('click', async () => {
+      clear();
+      log('正在重启应用...');
+      try {
+        await app.restart();
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 7. 退出应用
+    document.getElementById('btn-quit').addEventListener('click', async () => {
+      clear();
+      log('正在退出应用...');
+      try {
+        await app.quit();
+      } catch (error) {
+        log(`错误: ${error.message}`);
+      }
+    });
+
+    // 页面加载完成后记录
+    log('页面已加载');
+    log('可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.hasSingleInstanceLock(), app.setProxy(config), app.on(event, callback)');
   </script>
 </body>
 </html>

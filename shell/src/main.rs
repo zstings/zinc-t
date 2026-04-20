@@ -344,6 +344,15 @@ fn main() {
     };
 
     *webview_arc.lock().unwrap() = Some(webview);
+
+    // 触发 app.ready 事件
+    if let Ok(webview_guard) = webview_arc.lock() {
+        if let Some(ref webview) = *webview_guard {
+            webview.evaluate_script("window.__VOKEX__.__emit('app.ready', {})")
+                .unwrap_or(());
+        }
+    }
+
     let webview = webview_arc;
     let _window = Some(window);
 
@@ -354,6 +363,13 @@ fn main() {
             tao::event::Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::CloseRequested => {
+                        // 触发 app.before-quit 事件
+                        if let Ok(webview_guard) = webview.lock() {
+                            if let Some(ref webview) = *webview_guard {
+                                webview.evaluate_script("window.__VOKEX__.__emit('app.before-quit', {})")
+                                    .unwrap_or(());
+                            }
+                        }
                         if let Ok(webview_guard) = webview.lock() {
                             if let Some(ref webview) = *webview_guard {
                                 webview.evaluate_script("window.__VOKEX__.__emit('window.closed', {})").unwrap_or(());
@@ -435,15 +451,101 @@ fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
     Ok(Value::Null)
 }
 
-fn handle_app_api(method: &str, _args: &Value) -> Result<Value, String> {
+fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
     let config = app_config::get_config().clone();
     match method {
-        "isReady" => Ok(json!(true)), // 应用是否已完成初始化
-        "name" => Ok(json!(config.name)), // 应用名称
-        "version" => Ok(json!(config.version)), // 应用版本号（来自 package.json）
-        "identifier" => Ok(json!(config.identifier)), // 应用标识符
-        "isPackaged" => Ok(json!(!config.dev_mode)), // 是否以打包模式运行（对应 Electron app.isPackaged）
-        "isNative" => Ok(json!(true)), // 是否在原生壳中运行（开发模式为 false）
+        // 应用生命周期控制
+        "quit" => {
+            // 触发 before-quit 事件后退出
+            // 注意：实际退出逻辑需要在事件循环中处理
+            std::process::exit(0);
+        }
+        "exit" => {
+            let code = args.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            std::process::exit(code);
+        }
+        "restart" => {
+            // 重启应用：获取当前可执行文件路径并重新启动
+            if let Ok(exe_path) = std::env::current_exe() {
+                let _ = std::process::Command::new(exe_path)
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+                std::process::exit(0);
+            }
+            Err("Failed to get current exe path".to_string())
+        }
+        // 路径相关
+        "getAppPath" => {
+            std::env::current_exe()
+                .map(|p| json!(p.to_str().unwrap_or("")))
+                .map_err(|e| e.to_string())
+        }
+        "getPath" => {
+            let name = args.get(0).and_then(|v| v.as_str()).unwrap_or("");
+            let path = match name {
+                "home" => dirs::home_dir(),
+                "appData" => dirs::data_dir(),
+                "desktop" => dirs::desktop_dir(),
+                "documents" => dirs::document_dir(),
+                "downloads" => dirs::download_dir(),
+                "pictures" => dirs::picture_dir(),
+                "music" => dirs::audio_dir(),
+                "videos" => dirs::video_dir(),
+                "temp" => Some(std::env::temp_dir()),
+                "exe" => std::env::current_exe().ok(),
+                _ => None,
+            };
+            match path {
+                Some(p) => Ok(json!(p.to_str().unwrap_or(""))),
+                None => Err(format!("Unknown path name: {}", name)),
+            }
+        }
+
+        // 应用信息
+        "getVersion" => Ok(json!(config.version)),
+        "getName" => Ok(json!(config.name)),
+        "setName" => {
+            // 设置应用名称 - 在运行时修改（仅影响当前会话）
+            // 注意：实际实现需要与窗口标题同步
+            Ok(Value::Null)
+        }
+        "getLocale" => {
+            // 获取系统语言标识
+            let locale = sys_locale::get_locale()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "en-US".to_string());
+            Ok(json!(locale))
+        }
+
+        // macOS 特有功能
+        "setDockBadge" => {
+            // macOS Dock 图标徽标 - 仅在 macOS 上有效
+            #[cfg(target_os = "macos")]
+            {
+                // TODO: 实现 macOS Dock 徽标设置
+            }
+            Ok(Value::Null)
+        }
+
+        // 单实例锁
+        "requestSingleInstanceLock" => {
+            // 请求单实例锁，防止重复启动
+            // TODO: 实现单实例锁机制
+            Ok(json!(true))
+        }
+        "hasSingleInstanceLock" => {
+            // 检查是否持有单实例锁
+            // TODO: 实现单实例锁检查
+            Ok(json!(true))
+        }
+
+        // 代理设置
+        "setProxy" => {
+            // 设置应用代理
+            // TODO: 实现代理设置
+            Ok(Value::Null)
+        }
+
         _ => Err(format!("Unknown app method: {}", method)),
     }
 }

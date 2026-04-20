@@ -29,38 +29,91 @@ export const fs = {
 };
 
 /**
+ * ProxyConfig 接口
+ */
+export interface ProxyConfig {
+  proxyRules: string;
+  pacScript?: string;
+  proxyBypassRules?: string;
+}
+
+/**
  * 应用相关 API
  */
 export const app = {
   /**
-   * 应用是否已完成初始化
+   * 退出应用
    */
-  isReady: (): Promise<boolean> => vokexCall('app.isReady'),
+  quit: (): Promise<void> => vokexCall('app.quit'),
 
   /**
-   * 应用名称
+   * 立即退出应用，不触发生命周期事件
    */
-  name: (): Promise<string> => vokexCall('app.name'),
+  exit: (code: number = 0): Promise<void> => vokexCall('app.exit', [code]),
 
   /**
-   * 应用版本号
+   * 重启应用
    */
-  version: (): Promise<string> => vokexCall('app.version'),
+  restart: (): Promise<void> => vokexCall('app.restart'),
 
   /**
-   * 应用标识符
+   * 获取应用安装目录路径
    */
-  identifier: (): Promise<string> => vokexCall('app.identifier'),
+  getAppPath: (): Promise<string> => vokexCall('app.getAppPath'),
 
   /**
-   * 是否以打包模式运行
+   * 获取系统特殊目录路径
+   * @param name 目录名，如 home、appData、desktop、documents、downloads、pictures、music、videos、temp、exe
    */
-  isPackaged: (): Promise<boolean> => vokexCall('app.isPackaged'),
+  getPath: (name: string): Promise<string> => vokexCall('app.getPath', [name]),
 
   /**
-   * 是否在原生壳中运行
+   * 获取应用版本号（来自 package.json）
    */
-  isNative: (): Promise<boolean> => vokexCall('app.isNative'),
+  getVersion: (): Promise<string> => vokexCall('app.getVersion'),
+
+  /**
+   * 获取应用名称
+   */
+  getName: (): Promise<string> => vokexCall('app.getName'),
+
+  /**
+   * 设置应用名称
+   */
+  setName: (name: string): Promise<void> => vokexCall('app.setName', [name]),
+
+  /**
+   * 获取系统语言标识，如 zh-CN、en-US
+   */
+  getLocale: (): Promise<string> => vokexCall('app.getLocale'),
+
+  /**
+   * 设置 macOS Dock 图标徽标
+   */
+  setDockBadge: (text: string): Promise<void> => vokexCall('app.setDockBadge', [text]),
+
+  /**
+   * 请求单实例锁，防止重复启动
+   * @returns true 表示当前是首个实例，false 表示已有实例运行
+   */
+  requestSingleInstanceLock: (): Promise<boolean> => vokexCall('app.requestSingleInstanceLock'),
+
+  /**
+   * 检查是否持有单实例锁
+   */
+  hasSingleInstanceLock: (): Promise<boolean> => vokexCall('app.hasSingleInstanceLock'),
+
+  /**
+   * 设置应用代理
+   */
+  setProxy: (config: ProxyConfig): Promise<void> => vokexCall('app.setProxy', [config]),
+
+  /**
+   * 监听应用事件
+   */
+  on: (event: 'ready' | 'window-all-closed' | 'before-quit' | 'second-instance' | 'activate', callback: (data?: any) => void): void => {
+    events.on(`app.${event}`, callback);
+  },
 };
 
 /**
