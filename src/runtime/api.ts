@@ -38,9 +38,48 @@ export interface ProxyConfig {
 }
 
 /**
+ * App 事件类型
+ */
+export type AppEvent = 'ready' | 'window-all-closed' | 'before-quit' | 'second-instance' | 'activate';
+
+/**
+ * App API 接口
+ */
+export interface AppAPI {
+  /** 退出应用 */
+  quit: () => Promise<void>;
+  /** 立即退出应用，不触发生命周期事件 */
+  exit: (code?: number) => Promise<void>;
+  /** 重启应用 */
+  restart: () => Promise<void>;
+  /** 获取应用安装目录路径 */
+  getAppPath: () => Promise<string>;
+  /** 获取系统特殊目录路径 */
+  getPath: (name: string) => Promise<string>;
+  /** 获取应用版本号（来自 package.json） */
+  getVersion: () => Promise<string>;
+  /** 获取应用名称 */
+  getName: () => Promise<string>;
+  /** 设置应用名称 */
+  setName: (name: string) => Promise<void>;
+  /** 获取系统语言标识，如 zh-CN、en-US */
+  getLocale: () => Promise<string>;
+  /** 设置 macOS Dock 图标徽标 */
+  setDockBadge: (text: string) => Promise<void>;
+  /** 请求单实例锁，防止重复启动 */
+  requestSingleInstanceLock: () => Promise<boolean>;
+  /** 检查是否持有单实例锁 */
+  hasSingleInstanceLock: () => Promise<boolean>;
+  /** 设置应用代理 */
+  setProxy: (config: ProxyConfig) => Promise<void>;
+  /** 监听应用事件 */
+  on: (event: AppEvent, callback: (data?: any) => void) => void;
+}
+
+/**
  * 应用相关 API
  */
-export const app = {
+export const app: AppAPI = {
   /**
    * 退出应用
    */
