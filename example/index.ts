@@ -1,13 +1,13 @@
 import { app } from "vokex";
 
-const output = document.getElementById("output");
+const output = document.getElementById("output") as HTMLDivElement;
 
-function log(message) {
+function log(message: string): void {
   output.textContent += message + "\n";
   output.scrollTop = output.scrollHeight;
 }
 
-function clear() {
+function clear(): void {
   output.textContent = "";
 }
 
@@ -22,7 +22,7 @@ app.on("before-quit", () => {
 });
 
 // 1. 获取应用信息
-document.getElementById("btn-app-info").addEventListener("click", async () => {
+document.getElementById("btn-app-info")?.addEventListener("click", async () => {
   clear();
   log("=== 应用信息 ===");
   try {
@@ -30,19 +30,19 @@ document.getElementById("btn-app-info").addEventListener("click", async () => {
     const version = await app.getVersion();
     log(`应用名称: ${name}`);
     log(`应用版本: ${version}`);
-  } catch (error) {
+  } catch (error: any) {
     log(`错误: ${error.message}`);
   }
 });
 
 // 2. 获取应用路径
-document.getElementById("btn-app-paths").addEventListener("click", async () => {
+document.getElementById("btn-app-paths")?.addEventListener("click", async () => {
   clear();
   log("=== 应用路径 ===");
   try {
     const appPath = await app.getAppPath();
     log(`应用路径: ${appPath}`);
-  } catch (error) {
+  } catch (error: any) {
     log(`错误: ${error.message}`);
   }
 });
@@ -50,7 +50,7 @@ document.getElementById("btn-app-paths").addEventListener("click", async () => {
 // 3. 获取系统路径
 document
   .getElementById("btn-system-paths")
-  .addEventListener("click", async () => {
+  ?.addEventListener("click", async () => {
     clear();
     log("=== 系统路径 ===");
     try {
@@ -66,25 +66,25 @@ document
         const path = await app.getPath(name);
         log(`${name}: ${path}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       log(`错误: ${error.message}`);
     }
   });
 
 // 4. 获取系统语言
-document.getElementById("btn-locale").addEventListener("click", async () => {
+document.getElementById("btn-locale")?.addEventListener("click", async () => {
   clear();
   log("=== 系统语言 ===");
   try {
     const locale = await app.getLocale();
     log(`系统语言: ${locale}`);
-  } catch (error) {
+  } catch (error: any) {
     log(`错误: ${error.message}`);
   }
 });
 
 // 5. 测试事件监听
-document.getElementById("btn-events").addEventListener("click", async () => {
+document.getElementById("btn-events")?.addEventListener("click", async () => {
   clear();
   log("=== 事件监听测试 ===");
   log("已注册事件监听器:");
@@ -95,23 +95,23 @@ document.getElementById("btn-events").addEventListener("click", async () => {
 });
 
 // 6. 重启应用
-document.getElementById("btn-restart").addEventListener("click", async () => {
+document.getElementById("btn-restart")?.addEventListener("click", async () => {
   clear();
   log("正在重启应用...");
   try {
     await app.restart();
-  } catch (error) {
+  } catch (error: any) {
     log(`错误: ${error.message}`);
   }
 });
 
 // 7. 退出应用
-document.getElementById("btn-quit").addEventListener("click", async () => {
+document.getElementById("btn-quit")?.addEventListener("click", async () => {
   clear();
   log("正在退出应用...");
   try {
     await app.quit();
-  } catch (error) {
+  } catch (error: any) {
     log(`错误: ${error.message}`);
   }
 });
