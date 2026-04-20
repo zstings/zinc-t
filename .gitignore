@@ -3,5 +3,5 @@ dist/
 release/
 .DS_Store
 *.log
-prebuilt/win32-x64/
+prebuilt/win32-x64/*
 !prebuilt/win32-x64/shell.exe
