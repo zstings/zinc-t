@@ -2090,6 +2090,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "vokex-shell"
+version = "0.1.0"
+dependencies = [
+ "dirs 5.0.1",
+ "flate2",
+ "gtk",
+ "hostname",
+ "mime_guess",
+ "serde",
+ "serde_json",
+ "tao",
+ "windows-sys 0.48.0",
+ "wry",
+]
+
+[[package]]
 name = "walkdir"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2650,22 +2666,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "zinc-shell"
-version = "0.1.0"
-dependencies = [
- "dirs 5.0.1",
- "flate2",
- "gtk",
- "hostname",
- "mime_guess",
- "serde",
- "serde_json",
- "tao",
- "windows-sys 0.48.0",
- "wry",
 ]
 
 [[package]]

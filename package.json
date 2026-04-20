@@ -29,12 +29,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "cargo:dev": "cargo build --manifest-path=shell/Cargo.toml && powershell -Command \"New-Item -ItemType Directory -Path 'prebuilt/win32-x64' -Force\" && powershell -Command \"Copy-Item 'shell/target/debug/vokex-shell.exe' 'prebuilt/win32-x64/shell.exe' -Force\"",
-    "cargo:build": "cargo build --release --manifest-path=shell/Cargo.toml && powershell -Command \"New-Item -ItemType Directory -Path 'prebuilt/win32-x64' -Force\" && powershell -Command \"Copy-Item 'shell/target/release/vokex-shell.exe' 'prebuilt/win32-x64/shell.exe' -Force\"",
-    "rebuild": "npm run cargo && npm run build && npm run example",
-    "prepublishOnly": "npm run build",
-    "example": "cd example && npm run build"
+    "dev": "tsc --watch"
   },
   "dependencies": {},
   "devDependencies": {
