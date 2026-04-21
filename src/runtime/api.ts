@@ -660,13 +660,13 @@ export interface HttpResponse {
  */
 export interface HttpAPI {
   /** 发起 GET 请求 */
-  get: (url: string, options?: RequestOptions) => Promise<HttpResponse>;
+  get: (url: string, options?: Omit<RequestOptions, 'method' | 'url'>) => Promise<HttpResponse>;
   /** 发起 POST 请求 */
-  post: (url: string, data?: any, options?: RequestOptions) => Promise<HttpResponse>;
+  post: (url: string, data?: any, options?: Omit<RequestOptions, 'method' | 'url'>) => Promise<HttpResponse>;
   /** 发起 PUT 请求 */
-  put: (url: string, data?: any, options?: RequestOptions) => Promise<HttpResponse>;
+  put: (url: string, data?: any, options?: Omit<RequestOptions, 'method' | 'url'>) => Promise<HttpResponse>;
   /** 发起 DELETE 请求 */
-  delete: (url: string, options?: RequestOptions) => Promise<HttpResponse>;
+  delete: (url: string, options?: Omit<RequestOptions, 'method' | 'url'>) => Promise<HttpResponse>;
   /** 发起自定义请求 */
   request: (options: RequestOptions & { url: string }) => Promise<HttpResponse>;
 }
@@ -676,19 +676,71 @@ export interface HttpAPI {
  */
 export const http: HttpAPI = {
   /** 发起 GET 请求 */
-  get: (url: string, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.get', [url, options]),
+  get: (url: string, options?: Omit<RequestOptions, 'method' | 'url'>): Promise<HttpResponse> => {
+    return http.request({
+      method: 'GET',
+      url,
+      ...options,
+    });
+  },
 
   /** 发起 POST 请求 */
-  post: (url: string, data?: any, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.post', [url, data, options]),
+  post: (url: string, data?: any, options?: Omit<RequestOptions, 'method' | 'url'>): Promise<HttpResponse> => {
+    let body: string | undefined;
+    if (data !== undefined) {
+      if (typeof data === 'string') {
+        body = data;
+      } else {
+        body = JSON.stringify(data);
+      }
+    }
+    return http.request({
+      method: 'POST',
+      url,
+      body,
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  },
 
   /** 发起 PUT 请求 */
-  put: (url: string, data?: any, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.put', [url, data, options]),
+  put: (url: string, data?: any, options?: Omit<RequestOptions, 'method' | 'url'>): Promise<HttpResponse> => {
+    let body: string | undefined;
+    if (data !== undefined) {
+      if (typeof data === 'string') {
+        body = data;
+      } else {
+        body = JSON.stringify(data);
+      }
+    }
+    return http.request({
+      method: 'PUT',
+      url,
+      body,
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  },
 
   /** 发起 DELETE 请求 */
-  delete: (url: string, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.delete', [url, options]),
+  delete: (url: string, options?: Omit<RequestOptions, 'method' | 'url'>): Promise<HttpResponse> => {
+    return http.request({
+      method: 'DELETE',
+      url,
+      ...options,
+    });
+  },
 
   /** 发起自定义请求 */
-  request: (options: RequestOptions & { url: string }): Promise<HttpResponse> => vokexCall('http.request', [options]),
+  request: (options: RequestOptions & { url: string }): Promise<HttpResponse> => {
+    return vokexCall('http.request', [options]);
+  },
 };
 
 /**

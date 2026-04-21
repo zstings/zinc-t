@@ -870,104 +870,6 @@ struct RequestOptions {
 /// HTTP 相关 API
 fn handle_http_api(method: &str, args: &Value) -> Result<Value, String> {
     match method {
-        "get" => {
-            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
-            let options = args.get(1).cloned();
-            
-            let mut opts: RequestOptions = Default::default();
-            if let Some(opts_val) = options {
-                opts = serde_json::from_value(opts_val).unwrap_or_default();
-            }
-            
-            let mut req = reqwest::blocking::Client::new().get(url);
-            if let Some(headers) = &opts.headers {
-                for (key, value) in headers {
-                    req = req.header(key, value);
-                }
-            }
-            
-            send_http_request(req)
-        }
-
-        "post" => {
-            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
-            let data = args.get(1);
-            let options = args.get(2).cloned();
-            
-            let mut opts: RequestOptions = Default::default();
-            if let Some(opts_val) = options {
-                opts = serde_json::from_value(opts_val).unwrap_or_default();
-            }
-            
-            let mut req = reqwest::blocking::Client::new().post(url);
-            if let Some(headers) = &opts.headers {
-                for (key, value) in headers {
-                    req = req.header(key, value);
-                }
-            }
-            
-            if let Some(data_val) = data {
-                if let Some(data_str) = data_val.as_str() {
-                    req = req.body(data_str.to_string());
-                } else {
-                    if let Ok(json_str) = serde_json::to_string(data_val) {
-                        req = req.body(json_str);
-                    }
-                }
-            }
-            
-            send_http_request(req)
-        }
-
-        "put" => {
-            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
-            let data = args.get(1);
-            let options = args.get(2).cloned();
-            
-            let mut opts: RequestOptions = Default::default();
-            if let Some(opts_val) = options {
-                opts = serde_json::from_value(opts_val).unwrap_or_default();
-            }
-            
-            let mut req = reqwest::blocking::Client::new().put(url);
-            if let Some(headers) = &opts.headers {
-                for (key, value) in headers {
-                    req = req.header(key, value);
-                }
-            }
-            
-            if let Some(data_val) = data {
-                if let Some(data_str) = data_val.as_str() {
-                    req = req.body(data_str.to_string());
-                } else {
-                    if let Ok(json_str) = serde_json::to_string(data_val) {
-                        req = req.body(json_str);
-                    }
-                }
-            }
-            
-            send_http_request(req)
-        }
-
-        "delete" => {
-            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
-            let options = args.get(1).cloned();
-            
-            let mut opts: RequestOptions = Default::default();
-            if let Some(opts_val) = options {
-                opts = serde_json::from_value(opts_val).unwrap_or_default();
-            }
-            
-            let mut req = reqwest::blocking::Client::new().delete(url);
-            if let Some(headers) = &opts.headers {
-                for (key, value) in headers {
-                    req = req.header(key, value);
-                }
-            }
-            
-            send_http_request(req)
-        }
-
         "request" => {
             let options = args.get(0).ok_or("Missing options argument")?;
             let opts: RequestOptions = serde_json::from_value(options.clone())
@@ -977,28 +879,25 @@ fn handle_http_api(method: &str, args: &Value) -> Result<Value, String> {
             let url = options.get("url").and_then(|v| v.as_str())
                 .ok_or("Missing url in options")?;
             
-            let client = reqwest::blocking::Client::new();
-            let mut req = match method.to_ascii_lowercase().as_str() {
-                 "get" => client.get(url),
-                 "post" => client.post(url),
-                 "put" => client.put(url),
-                 "delete" => client.delete(url),
-                 "head" => client.head(url),
-                 "patch" => client.patch(url),
-                 _ => client.get(url),
+            let agent = ureq::agent();
+             let mut req = match method.to_ascii_lowercase().as_str() {
+                 "get" => agent.get(url),
+                 "post" => agent.post(url),
+                 "put" => agent.put(url),
+                 "delete" => agent.delete(url),
+                 "head" => agent.head(url),
+                 "patch" => agent.patch(url),
+                 "options" => agent.request("OPTIONS", url),
+                 _ => agent.get(url),
              };
             
             if let Some(headers) = &opts.headers {
                 for (key, value) in headers {
-                    req = req.header(key, value);
+                    req = req.set(key, value);
                 }
             }
             
-            if let Some(body) = &opts.body {
-                req = req.body(body.clone());
-            }
-            
-            send_http_request(req)
+            send_http_request(req, opts.body)
         }
 
         _ => Err(format!("Unknown http method: {}", method)),
@@ -1006,28 +905,38 @@ fn handle_http_api(method: &str, args: &Value) -> Result<Value, String> {
 }
 
 /// 发送 HTTP 请求并返回响应
-fn send_http_request(req: reqwest::blocking::RequestBuilder) -> Result<Value, String> {
-    match req.send() {
+fn send_http_request(req: ureq::Request, body: Option<String>) -> Result<Value, String> {
+    let response = match body {
+        Some(body_str) => req.send_string(&body_str),
+        None => req.call(),
+    };
+    
+    match response {
         Ok(resp) => {
-            let status = resp.status();
-            let status_code = status.as_u16();
+            let status_code = resp.status();
             let mut headers = serde_json::Map::new();
-            for (name, value) in resp.headers() {
-                headers.insert(name.to_string(), json!(value.to_str().unwrap_or("")));
+            for name in resp.headers_names() {
+                if let Some(value) = resp.header(&name) {
+                    headers.insert(name.to_string(), json!(value));
+                }
             }
-            let body = resp.text()
-                .map_err(|e| e.to_string())?;
+            let body = match resp.into_string() {
+                Ok(b) => b,
+                Err(e) => return Err(e.to_string()),
+            };
+            
+            let ok = (200..=299).contains(&status_code);
             
             Ok(json!({
                 "statusCode": status_code,
                 "headers": headers,
                 "body": body,
-                "ok": status.is_success()
+                "ok": ok
             }))
         }
         Err(e) => Err(e.to_string()),
-     }
- }
+    }
+}
 
 /// 存储相关 API
 fn handle_storage_api(method: &str, args: &Value) -> Result<Value, String> {
