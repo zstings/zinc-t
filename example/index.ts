@@ -166,8 +166,6 @@ document.getElementById("btn-fs-demo")?.addEventListener("click", async () => {
     const testDir = `${appPath}\\test_demo`;
     const testFile = `${testDir}\\test.txt`;
     const copyFile = `${testDir}\\test_copy.txt`;
-
-    alert(`应用路径: ${appPath}，测试目录: ${testDir}，测试文件: ${testFile}，复制文件: ${copyFile}`);
     log(`1. 检查目录是否存在: ${testDir}`);
     const dirExists = await fs.exists(testDir);
     if (!dirExists) {
@@ -346,6 +344,91 @@ document.getElementById("btn-fs-rmdir")?.addEventListener("click", async () => {
       log(`删除后目录存在: ${existsAfter}`);
     } else {
       log(`⚠️ 目录不存在: ${dirName}`);
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 18. 读取二进制文件测试
+document.getElementById("btn-fs-read-binary")?.addEventListener("click", async () => {
+  clear();
+  log("=== 读取二进制文件测试 ===");
+  log("尝试读取 test.txt...");
+
+  try {
+    const data = await fs.readFileBinary("test_demo/test.txt");
+    log(`读取成功，字节长度: ${data.length}`);
+    log(`前 10 字节: [${Array.from(data.slice(0, 10)).join(', ')}]`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+    log("提示: 请确保在正确的工作目录运行");
+  }
+});
+
+// 19. 追加内容测试
+document.getElementById("btn-fs-append")?.addEventListener("click", async () => {
+  clear();
+  log("=== 追加内容测试 ===");
+
+  const fileName = "test_demo/test.txt";
+  const appendContent = `\n[追加] 这是追加的一行\n时间戳: ${Date.now()}\n`;
+
+  try {
+    const exists = await fs.exists(fileName);
+    if (!exists) {
+      log(`⚠️ 文件不存在，先创建文件: ${fileName}`);
+      await fs.writeFile(fileName, "初始内容\n");
+    }
+
+    const statBefore = await fs.stat(fileName);
+    log(`追加前大小: ${statBefore.size} 字节`);
+
+    await fs.appendFile(fileName, appendContent);
+    log(`✅ 已追加内容到: ${fileName}`);
+
+    const statAfter = await fs.stat(fileName);
+    log(`追加后大小: ${statAfter.size} 字节`);
+    log(`增加了 ${statAfter.size - statBefore.size} 字节`);
+
+    const fullContent = await fs.readFile(fileName);
+    log(`\n完整内容:\n---\n${fullContent}\n---`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 20. 移动/重命名文件测试
+document.getElementById("btn-fs-move")?.addEventListener("click", async () => {
+  clear();
+  log("=== 移动/重命名文件测试 ===");
+
+  const src = "test_demo/test.txt";
+  const dest = "test_demo/test_renamed.txt";
+
+  try {
+    const srcExists = await fs.exists(src);
+    if (!srcExists) {
+      log(`⚠️ 源文件不存在: ${src}`);
+      log("先创建源文件...");
+      await fs.createDir("test_demo");
+      await fs.writeFile(src, "这是要被重命名的文件\n");
+    }
+
+    const destExistsBefore = await fs.exists(dest);
+    log(`目标文件已存在: ${destExistsBefore}`);
+
+    await fs.moveFile(src, dest);
+    log(`✅ 已移动/重命名: ${src} -> ${dest}`);
+
+    const srcExistsAfter = await fs.exists(src);
+    const destExistsAfter = await fs.exists(dest);
+    log(`源文件现在存在: ${srcExistsAfter}`);
+    log(`目标文件现在存在: ${destExistsAfter}`);
+
+    if (destExistsAfter) {
+      const content = await fs.readFile(dest);
+      log(`\n目标文件内容:\n---\n${content}\n---`);
     }
   } catch (error: any) {
     log(`❌ 错误: ${error.message}`);
