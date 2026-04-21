@@ -1,4 +1,4 @@
-import { app, notification, fs } from "vokex";
+import { app, notification, fs, process } from "vokex";
 
 const output = document.getElementById("output") as HTMLDivElement;
 
@@ -435,6 +435,85 @@ document.getElementById("btn-fs-move")?.addEventListener("click", async () => {
   }
 });
 
+// ==================== 进程信息 API 测试 ====================
+
+// 16. 进程基本信息
+document.getElementById("btn-process-info")?.addEventListener("click", async () => {
+  clear();
+  log("=== 进程基本信息 ===");
+
+  try {
+    const pid = await process.getPid();
+    const argv = await process.getArgv();
+    const platform = await process.getPlatform();
+    const arch = await process.getArch();
+    const hostname = await process.hostname();
+    const cwd = await process.cwd();
+    const homeDir = await process.homeDir();
+    const tempDir = await process.tempDir();
+
+    log(`PID: ${pid}`);
+    log(`Platform: ${platform}`);
+    log(`Arch: ${arch}`);
+    log(`Hostname: ${hostname}`);
+    log(`CWD: ${cwd}`);
+    log(`Home Dir: ${homeDir}`);
+    log(`Temp Dir: ${tempDir}`);
+    log(`\nArgv (${argv.length}):`);
+    argv.forEach((arg, i) => log(`  [${i}] ${arg}`));
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 17. 进程运行时长
+document.getElementById("btn-process-uptime")?.addEventListener("click", async () => {
+  clear();
+  log("=== 进程运行时长 ===");
+
+  try {
+    const uptime = await process.getUptime();
+    log(`进程已运行: ${uptime} 秒`);
+    log(`约 ${(uptime / 60).toFixed(2)} 分钟`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 18. CPU 使用率
+document.getElementById("btn-process-cpu")?.addEventListener("click", async () => {
+  clear();
+  log("=== CPU 使用率 ===");
+
+  try {
+    const cpu = await process.getCpuUsage();
+    log(`User CPU: ${cpu.user.toFixed(2)} 秒`);
+    log(`System CPU: ${cpu.system.toFixed(2)} 秒`);
+    log(`Total CPU: ${(cpu.user + cpu.system).toFixed(2)} 秒`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 19. 内存信息
+document.getElementById("btn-process-memory")?.addEventListener("click", async () => {
+  clear();
+  log("=== 内存信息 ===");
+
+  try {
+    const mem = await process.getMemoryInfo();
+    const rssKB = (mem.rss / 1024).toFixed(0);
+    const rssMB = (mem.rss / 1024 / 1024).toFixed(2);
+    log(`RSS (常驻内存大小): ${mem.rss} bytes = ${rssKB} KB = ${rssMB} MB`);
+    if (mem.heapTotal > 0) {
+      const heapTotalMB = (mem.heapTotal / 1024 / 1024).toFixed(2);
+      log(`Heap Total: ${heapTotalMB} MB`);
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
 // 页面加载完成后记录
 log("页面已加载");
 log(
@@ -442,4 +521,7 @@ log(
 );
 log(
   "fs API: fs.readFile, fs.readFileBinary, fs.writeFile, fs.appendFile, fs.deleteFile, fs.readDir, fs.createDir, fs.removeDir, fs.stat, fs.exists, fs.copyFile, fs.moveFile",
+);
+log(
+  "process API: process.getPid, process.getArgv, process.getEnv, process.getPlatform, process.getArch, process.getUptime, process.getCpuUsage, process.getMemoryInfo, process.homeDir, process.tempDir, process.hostname, process.cwd, process.exit, process.kill",
 );
