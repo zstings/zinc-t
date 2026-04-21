@@ -1,4 +1,4 @@
-import { app, notification, fs, process, shell } from "vokex";
+import { app, notification, fs, process, shell, computer, http, storage } from "vokex";
 
 const output = document.getElementById("output") as HTMLDivElement;
 
@@ -11,17 +11,14 @@ function clear(): void {
   output.textContent = "";
 }
 
-// 监听 app.ready 事件
 app.on("ready", () => {
   log("📢 事件: app.ready - 应用已就绪");
 });
 
-// 监听 app.before-quit 事件
 app.on("before-quit", () => {
   log("📢 事件: app.before-quit - 应用即将退出");
 });
 
-// 1. 获取应用信息
 document.getElementById("btn-app-info")?.addEventListener("click", async () => {
   clear();
   log("=== 应用信息 ===");
@@ -35,7 +32,6 @@ document.getElementById("btn-app-info")?.addEventListener("click", async () => {
   }
 });
 
-// 2. 获取应用路径
 document.getElementById("btn-app-paths")?.addEventListener("click", async () => {
   clear();
   log("=== 应用路径 ===");
@@ -47,7 +43,6 @@ document.getElementById("btn-app-paths")?.addEventListener("click", async () => 
   }
 });
 
-// 3. 获取系统路径
 document
   .getElementById("btn-system-paths")
   ?.addEventListener("click", async () => {
@@ -71,7 +66,6 @@ document
     }
   });
 
-// 4. 获取系统语言
 document.getElementById("btn-locale")?.addEventListener("click", async () => {
   clear();
   log("=== 系统语言 ===");
@@ -83,7 +77,6 @@ document.getElementById("btn-locale")?.addEventListener("click", async () => {
   }
 });
 
-// 5. 单实例锁测试
 document.getElementById("btn-single-instance")?.addEventListener("click", async () => {
   clear();
   log("=== 单实例锁测试 ===");
@@ -103,7 +96,6 @@ document.getElementById("btn-single-instance")?.addEventListener("click", async 
   }
 });
 
-// 6. 测试事件监听
 document.getElementById("btn-events")?.addEventListener("click", async () => {
   clear();
   log("=== 事件监听测试 ===");
@@ -114,7 +106,6 @@ document.getElementById("btn-events")?.addEventListener("click", async () => {
   log("提示: 关闭窗口时会触发 before-quit 事件");
 });
 
-// 7. 发送系统通知
 document.getElementById("btn-notification")?.addEventListener("click", async () => {
   clear();
   log("=== 系统通知测试 ===");
@@ -132,7 +123,6 @@ document.getElementById("btn-notification")?.addEventListener("click", async () 
   }
 });
 
-// 8. 重启应用
 document.getElementById("btn-restart")?.addEventListener("click", async () => {
   clear();
   log("正在重启应用...");
@@ -143,7 +133,6 @@ document.getElementById("btn-restart")?.addEventListener("click", async () => {
   }
 });
 
-// 9. 退出应用
 document.getElementById("btn-quit")?.addEventListener("click", async () => {
   clear();
   log("正在退出应用...");
@@ -154,9 +143,6 @@ document.getElementById("btn-quit")?.addEventListener("click", async () => {
   }
 });
 
-// ==================== 文件系统 API 测试 ====================
-
-// 10. 文件系统完整演示
 document.getElementById("btn-fs-demo")?.addEventListener("click", async () => {
   clear();
   log("=== 文件系统完整演示 ===");
@@ -206,7 +192,6 @@ document.getElementById("btn-fs-demo")?.addEventListener("click", async () => {
   }
 });
 
-// 11. 读取文件测试
 document.getElementById("btn-fs-read")?.addEventListener("click", async () => {
   clear();
   log("=== 读取文件测试 ===");
@@ -222,7 +207,6 @@ document.getElementById("btn-fs-read")?.addEventListener("click", async () => {
   }
 });
 
-// 12. 写入文件测试
 document.getElementById("btn-fs-write")?.addEventListener("click", async () => {
   clear();
   log("=== 写入文件测试 ===");
@@ -245,7 +229,6 @@ document.getElementById("btn-fs-write")?.addEventListener("click", async () => {
   }
 });
 
-// 13. 读取目录测试
 document.getElementById("btn-fs-readdir")?.addEventListener("click", async () => {
   clear();
   log("=== 读取目录测试 ===");
@@ -263,7 +246,6 @@ document.getElementById("btn-fs-readdir")?.addEventListener("click", async () =>
   }
 });
 
-// 14. 文件信息测试
 document.getElementById("btn-fs-stat")?.addEventListener("click", async () => {
   clear();
   log("=== 文件信息测试 ===");
@@ -280,7 +262,6 @@ document.getElementById("btn-fs-stat")?.addEventListener("click", async () => {
   }
 });
 
-// 15. 复制文件测试
 document.getElementById("btn-fs-copy")?.addEventListener("click", async () => {
   clear();
   log("=== 复制文件测试 ===");
@@ -300,7 +281,6 @@ document.getElementById("btn-fs-copy")?.addEventListener("click", async () => {
   }
 });
 
-// 16. 删除文件测试
 document.getElementById("btn-fs-delete")?.addEventListener("click", async () => {
   clear();
   log("=== 删除文件测试 ===");
@@ -325,7 +305,6 @@ document.getElementById("btn-fs-delete")?.addEventListener("click", async () => 
   }
 });
 
-// 17. 删除目录测试
 document.getElementById("btn-fs-rmdir")?.addEventListener("click", async () => {
   clear();
   log("=== 删除目录测试 ===");
@@ -350,7 +329,6 @@ document.getElementById("btn-fs-rmdir")?.addEventListener("click", async () => {
   }
 });
 
-// 18. 读取二进制文件测试
 document.getElementById("btn-fs-read-binary")?.addEventListener("click", async () => {
   clear();
   log("=== 读取二进制文件测试 ===");
@@ -366,7 +344,6 @@ document.getElementById("btn-fs-read-binary")?.addEventListener("click", async (
   }
 });
 
-// 19. 追加内容测试
 document.getElementById("btn-fs-append")?.addEventListener("click", async () => {
   clear();
   log("=== 追加内容测试 ===");
@@ -398,7 +375,6 @@ document.getElementById("btn-fs-append")?.addEventListener("click", async () => 
   }
 });
 
-// 20. 移动/重命名文件测试
 document.getElementById("btn-fs-move")?.addEventListener("click", async () => {
   clear();
   log("=== 移动/重命名文件测试 ===");
@@ -435,9 +411,6 @@ document.getElementById("btn-fs-move")?.addEventListener("click", async () => {
   }
 });
 
-// ==================== 进程信息 API 测试 ====================
-
-// 16. 进程基本信息
 document.getElementById("btn-process-info")?.addEventListener("click", async () => {
   clear();
   log("=== 进程基本信息 ===");
@@ -466,7 +439,6 @@ document.getElementById("btn-process-info")?.addEventListener("click", async () 
   }
 });
 
-// 17. 进程运行时长
 document.getElementById("btn-process-uptime")?.addEventListener("click", async () => {
   clear();
   log("=== 进程运行时长 ===");
@@ -480,7 +452,6 @@ document.getElementById("btn-process-uptime")?.addEventListener("click", async (
   }
 });
 
-// 18. CPU 使用率
 document.getElementById("btn-process-cpu")?.addEventListener("click", async () => {
   clear();
   log("=== CPU 使用率 ===");
@@ -495,7 +466,6 @@ document.getElementById("btn-process-cpu")?.addEventListener("click", async () =
   }
 });
 
-// 19. 内存信息
 document.getElementById("btn-process-memory")?.addEventListener("click", async () => {
   clear();
   log("=== 内存信息 ===");
@@ -514,24 +484,6 @@ document.getElementById("btn-process-memory")?.addEventListener("click", async (
   }
 });
 
-// 页面加载完成后记录
-log("页面已加载");
-log(
-  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.setProxy(config), app.on(event, callback), notification.show(options), notification.isSupported()",
-);
-log(
-  "fs API: fs.readFile, fs.readFileBinary, fs.writeFile, fs.appendFile, fs.deleteFile, fs.readDir, fs.createDir, fs.removeDir, fs.stat, fs.exists, fs.copyFile, fs.moveFile",
-);
-log(
-  "process API: process.getPid, process.getArgv, process.getEnv, process.getPlatform, process.getArch, process.getUptime, process.getCpuUsage, process.getMemoryInfo, process.homeDir, process.tempDir, process.hostname, process.cwd, process.exit, process.kill",
-);
-log(
-  "shell API: shell.openExternal, shell.openPath, shell.execCommand, shell.trashItem",
-);
-
-// ==================== Shell API 测试 ====================
-
-// 1. openExternal - 打开 GitHub
 document.getElementById("btn-shell-openexternal")?.addEventListener("click", async () => {
   clear();
   log("=== shell.openExternal 测试 ===");
@@ -544,7 +496,6 @@ document.getElementById("btn-shell-openexternal")?.addEventListener("click", asy
   }
 });
 
-// 2. openPath - 打开当前目录
 document.getElementById("btn-shell-openpath")?.addEventListener("click", async () => {
   clear();
   log("=== shell.openPath 测试 ===");
@@ -558,7 +509,6 @@ document.getElementById("btn-shell-openpath")?.addEventListener("click", async (
   }
 });
 
-// 3. execCommand - 执行 dir 命令
 document.getElementById("btn-shell-exec-dir")?.addEventListener("click", async () => {
   clear();
   log("=== shell.execCommand 测试: dir ===");
@@ -574,7 +524,6 @@ document.getElementById("btn-shell-exec-dir")?.addEventListener("click", async (
   }
 });
 
-// 4. execCommand - 执行 echo 命令
 document.getElementById("btn-shell-exec-echo")?.addEventListener("click", async () => {
   clear();
   log("=== shell.execCommand 测试: echo ===");
@@ -592,7 +541,6 @@ document.getElementById("btn-shell-exec-echo")?.addEventListener("click", async 
   }
 });
 
-// 5. trashItem - 将测试文件移到回收站
 document.getElementById("btn-shell-trash")?.addEventListener("click", async () => {
   clear();
   log("=== shell.trashItem 测试 ===");
@@ -616,3 +564,244 @@ document.getElementById("btn-shell-trash")?.addEventListener("click", async () =
     log(`❌ 错误: ${error.message}`);
   }
 });
+
+// ==================== Computer API 测试 ====================
+
+document.getElementById("btn-computer-cpu")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getCpuInfo() ===");
+  try {
+    const cpu = await computer.getCpuInfo();
+    log(`逻辑处理器数量: ${cpu.logicalProcessors}`);
+    log(`架构: ${cpu.architecture}`);
+    log(`制造商: ${cpu.manufacturer || '(未获取)'}`);
+    log(`型号: ${cpu.model || '(未获取)'}`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-computer-memory")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getMemoryInfo() ===");
+  try {
+    const mem = await computer.getMemoryInfo();
+    const totalGB = (mem.total / 1024 / 1024 / 1024).toFixed(2);
+    const availableGB = (mem.available / 1024 / 1024 / 1024).toFixed(2);
+    const usedGB = (mem.used / 1024 / 1024 / 1024).toFixed(2);
+    const usedPercent = ((mem.used / mem.total) * 100).toFixed(1);
+    log(`总内存: ${totalGB} GB`);
+    log(`可用内存: ${availableGB} GB`);
+    log(`已用内存: ${usedGB} GB (${usedPercent}%)`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-computer-os")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getOsInfo() ===");
+  try {
+    const os = await computer.getOsInfo();
+    log(`名称: ${os.name}`);
+    log(`版本: ${os.version}`);
+    log(`平台: ${os.platform}`);
+    log(`架构: ${os.arch}`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-computer-displays")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getDisplays() ===");
+  try {
+    const displays = await computer.getDisplays();
+    log(`检测到 ${displays.length} 台显示器:`);
+    displays.forEach((d, i) => {
+      log(`  [${i}] ${d.name.trim() || `Display ${d.id}`}: ${d.width}x${d.height} ${d.isPrimary ? '(主显示器)' : ''}`);
+    });
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-computer-mouse")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getMousePosition() ===");
+  try {
+    const pos = await computer.getMousePosition();
+    log(`鼠标当前位置: x=${pos.x}, y=${pos.y}`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-computer-keyboard")?.addEventListener("click", async () => {
+  clear();
+  log("=== computer.getKeyboardLayout() ===");
+  try {
+    const layout = await computer.getKeyboardLayout();
+    log(`当前键盘布局: ${layout}`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// ==================== HTTP API 测试 ====================
+
+document.getElementById("btn-http-get")?.addEventListener("click", async () => {
+  clear();
+  log("=== http.get() ===");
+  log("请求: https://jsonplaceholder.typicode.com/todos/1");
+  try {
+    const response = await http.get("https://jsonplaceholder.typicode.com/todos/1");
+    log(`状态码: ${response.statusCode}`);
+    log(`成功: ${response.ok}`);
+    log(`\n响应体:`);
+    log(response.body);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-http-post")?.addEventListener("click", async () => {
+  clear();
+  log("=== http.post() ===");
+  log("POST: https://jsonplaceholder.typicode.com/posts");
+  log(`数据: ${JSON.stringify({ title: 'foo', body: 'bar', userId: 1 }, null, 2)}`);
+  try {
+    const data = { title: 'foo', body: 'bar', userId: 1 };
+    const response = await http.post("https://jsonplaceholder.typicode.com/posts", data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    log(`\n状态码: ${response.statusCode}`);
+    log(`成功: ${response.ok}`);
+    log(`\n响应体:`);
+    log(response.body);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// ==================== Storage API 测试 ====================
+
+document.getElementById("btn-storage-set")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.setData() ===");
+  try {
+    const testData = {
+      name: "Vokex",
+      version: "0.1.0",
+      features: ["desktop", "rust", "typescript"],
+      timestamp: Date.now(),
+    };
+    await storage.setData("test_key", testData);
+    log("✅ 已存储数据:");
+    log(`  key: test_key`);
+    log(`  value: ${JSON.stringify(testData, null, 2)}`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-storage-get")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.getData() ===");
+  try {
+    const data = await storage.getData("test_key");
+    if (data === null) {
+      log("⚠️ 键 test_key 不存在，请先点击「设置存储」");
+    } else {
+      log("✅ 读取到数据:");
+      log(JSON.stringify(data, null, 2));
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-storage-keys")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.getKeys() ===");
+  try {
+    const keys = await storage.getKeys();
+    log(`存储中共有 ${keys.length} 个键:`);
+    keys.forEach((key, i) => log(`  [${i}] ${key}`));
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-storage-has")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.has() ===");
+  try {
+    const exists = await storage.has("test_key");
+    log(`键 "test_key" 是否存在: ${exists}`);
+    if (!exists) {
+      log("提示: 请先点击「设置存储」");
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-storage-remove")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.removeData() ===");
+  try {
+    const existsBefore = await storage.has("test_key");
+    log(`删除前 "test_key" 是否存在: ${existsBefore}`);
+    if (existsBefore) {
+      await storage.removeData("test_key");
+      const existsAfter = await storage.has("test_key");
+      log(`✅ 已删除 "test_key"`);
+      log(`删除后 "test_key" 是否存在: ${existsAfter}`);
+    } else {
+      log("⚠️ 键不存在，无需删除");
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+document.getElementById("btn-storage-clear")?.addEventListener("click", async () => {
+  clear();
+  log("=== storage.clear() ===");
+  try {
+    const keysBefore = await storage.getKeys();
+    log(`清空前共有 ${keysBefore.length} 个键`);
+    await storage.clear();
+    const keysAfter = await storage.getKeys();
+    log(`✅ 已清空所有存储`);
+    log(`清空后共有 ${keysAfter.length} 个键`);
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+log("页面已加载");
+log(
+  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.setProxy(config), app.on(event, callback), notification.show(options), notification.isSupported()",
+);
+log(
+  "fs API: fs.readFile, fs.readFileBinary, fs.writeFile, fs.appendFile, fs.deleteFile, fs.readDir, fs.createDir, fs.removeDir, fs.stat, fs.exists, fs.copyFile, fs.moveFile",
+);
+log(
+  "process API: process.getPid, process.getArgv, process.getEnv, process.getPlatform, process.getArch, process.getUptime, process.getCpuUsage, process.getMemoryInfo, process.homeDir, process.tempDir, process.hostname, process.cwd, process.exit, process.kill",
+);
+log(
+  "shell API: shell.openExternal, shell.openPath, shell.execCommand, shell.trashItem",
+);
+log(
+  "computer API: computer.getCpuInfo, computer.getMemoryInfo, computer.getOsInfo, computer.getDisplays, computer.getMousePosition, computer.getKeyboardLayout",
+);
+log(
+  "http API: http.get, http.post, http.put, http.delete, http.request",
+);
+log(
+  "storage API: storage.setData, storage.getData, storage.getKeys, storage.has, storage.removeData, storage.clear",
+);

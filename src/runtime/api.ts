@@ -525,3 +525,209 @@ export const events = {
 export const call = (method: string, args: any[] = []): Promise<any> => {
   return vokexCall(method, args);
 };
+
+/**
+ * CPU 信息
+ */
+export interface CpuInfo {
+  /** CPU 制造商 */
+  manufacturer: string;
+  /** CPU 型号 */
+  model: string;
+  /** 物理核心数 */
+  cores: number;
+  /** 逻辑处理器数 */
+  logicalProcessors: number;
+  /** 架构 */
+  architecture: string;
+}
+
+/**
+ * 系统内存信息
+ */
+export interface MemoryInfo {
+  /** 总内存（字节） */
+  total: number;
+  /** 可用内存（字节） */
+  available: number;
+  /** 已用内存（字节） */
+  used: number;
+}
+
+/**
+ * 操作系统信息
+ */
+export interface OsInfo {
+  /** 操作系统名称 */
+  name: string;
+  /** 操作系统版本 */
+  version: string;
+  /** 平台 */
+  platform: string;
+  /** 架构 */
+  arch: string;
+}
+
+/**
+ * 显示器信息
+ */
+export interface Display {
+  /** 显示器 ID */
+  id: string;
+  /** 显示器名称 */
+  name: string;
+  /** 宽度（像素） */
+  width: number;
+  /** 高度（像素） */
+  height: number;
+  /** 缩放比例 */
+  scaleFactor: number;
+  /** 是否为主显示器 */
+  isPrimary: boolean;
+}
+
+/**
+ * Computer API 接口
+ */
+export interface ComputerAPI {
+  /** 获取 CPU 信息 */
+  getCpuInfo: () => Promise<CpuInfo>;
+  /** 获取系统内存信息 */
+  getMemoryInfo: () => Promise<MemoryInfo>;
+  /** 获取操作系统信息 */
+  getOsInfo: () => Promise<OsInfo>;
+  /** 获取显示器列表 */
+  getDisplays: () => Promise<Display[]>;
+  /** 获取鼠标当前位置 */
+  getMousePosition: () => Promise<{ x: number; y: number }>;
+  /** 获取当前键盘布局 */
+  getKeyboardLayout: () => Promise<string>;
+}
+
+/**
+ * 系统硬件与信息相关 API
+ */
+export const computer: ComputerAPI = {
+  /** 获取 CPU 信息 */
+  getCpuInfo: (): Promise<CpuInfo> => vokexCall('computer.getCpuInfo'),
+
+  /** 获取系统内存信息 */
+  getMemoryInfo: (): Promise<MemoryInfo> => vokexCall('computer.getMemoryInfo'),
+
+  /** 获取操作系统信息 */
+  getOsInfo: (): Promise<OsInfo> => vokexCall('computer.getOsInfo'),
+
+  /** 获取显示器列表 */
+  getDisplays: (): Promise<Display[]> => vokexCall('computer.getDisplays'),
+
+  /** 获取鼠标当前位置 */
+  getMousePosition: (): Promise<{ x: number; y: number }> => vokexCall('computer.getMousePosition'),
+
+  /** 获取当前键盘布局 */
+  getKeyboardLayout: (): Promise<string> => vokexCall('computer.getKeyboardLayout'),
+};
+
+/**
+ * HTTP 请求选项
+ */
+export interface RequestOptions {
+  /** 请求方法 */
+  method?: string;
+  /** 请求头 */
+  headers?: Record<string, string>;
+  /** 请求体 */
+  body?: string;
+  /** 超时时间（毫秒） */
+  timeout?: number;
+}
+
+/**
+ * HTTP 响应
+ */
+export interface HttpResponse {
+  /** 状态码 */
+  statusCode: number;
+  /** 响应头 */
+  headers: Record<string, string>;
+  /** 响应体 */
+  body: string;
+  /** 是否成功（2xx 状态码） */
+  ok: boolean;
+}
+
+/**
+ * HTTP API 接口
+ */
+export interface HttpAPI {
+  /** 发起 GET 请求 */
+  get: (url: string, options?: RequestOptions) => Promise<HttpResponse>;
+  /** 发起 POST 请求 */
+  post: (url: string, data?: any, options?: RequestOptions) => Promise<HttpResponse>;
+  /** 发起 PUT 请求 */
+  put: (url: string, data?: any, options?: RequestOptions) => Promise<HttpResponse>;
+  /** 发起 DELETE 请求 */
+  delete: (url: string, options?: RequestOptions) => Promise<HttpResponse>;
+  /** 发起自定义请求 */
+  request: (options: RequestOptions & { url: string }) => Promise<HttpResponse>;
+}
+
+/**
+ * HTTP/HTTPS 网络请求 API
+ */
+export const http: HttpAPI = {
+  /** 发起 GET 请求 */
+  get: (url: string, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.get', [url, options]),
+
+  /** 发起 POST 请求 */
+  post: (url: string, data?: any, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.post', [url, data, options]),
+
+  /** 发起 PUT 请求 */
+  put: (url: string, data?: any, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.put', [url, data, options]),
+
+  /** 发起 DELETE 请求 */
+  delete: (url: string, options?: RequestOptions): Promise<HttpResponse> => vokexCall('http.delete', [url, options]),
+
+  /** 发起自定义请求 */
+  request: (options: RequestOptions & { url: string }): Promise<HttpResponse> => vokexCall('http.request', [options]),
+};
+
+/**
+ * Storage API 接口
+ */
+export interface StorageAPI {
+  /** 存储数据 */
+  setData: (key: string, value: any) => Promise<void>;
+  /** 读取数据 */
+  getData: (key: string) => Promise<any>;
+  /** 获取所有键名 */
+  getKeys: () => Promise<string[]>;
+  /** 检查键是否存在 */
+  has: (key: string) => Promise<boolean>;
+  /** 删除指定键 */
+  removeData: (key: string) => Promise<void>;
+  /** 清空所有存储 */
+  clear: () => Promise<void>;
+}
+
+/**
+ * 持久化键值对存储 API
+ */
+export const storage: StorageAPI = {
+  /** 存储数据 */
+  setData: (key: string, value: any): Promise<void> => vokexCall('storage.setData', [key, value]),
+
+  /** 读取数据 */
+  getData: (key: string): Promise<any> => vokexCall('storage.getData', [key]),
+
+  /** 获取所有键名 */
+  getKeys: (): Promise<string[]> => vokexCall('storage.getKeys'),
+
+  /** 检查键是否存在 */
+  has: (key: string): Promise<boolean> => vokexCall('storage.has', [key]),
+
+  /** 删除指定键 */
+  removeData: (key: string): Promise<void> => vokexCall('storage.removeData', [key]),
+
+  /** 清空所有存储 */
+  clear: (): Promise<void> => vokexCall('storage.clear'),
+};

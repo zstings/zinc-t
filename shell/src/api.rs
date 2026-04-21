@@ -20,6 +20,9 @@ pub fn handle_api_call(method: &str, args: &Value) -> Result<Value, String> {
         "clipboard" => handle_clipboard_api(method_name, args),
         "notification" => handle_notification_api(method_name, args),
         "shell" => handle_shell_api(method_name, args),
+        "computer" => handle_computer_api(method_name, args),
+        "http" => handle_http_api(method_name, args),
+        "storage" => handle_storage_api(method_name, args),
         _ => Err(format!("Unknown namespace: {}", namespace)),
     }
 }
@@ -436,7 +439,7 @@ fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
         }
         "kill" => {
             let pid = _args.get(0).and_then(|v| v.as_i64()).ok_or("Missing pid argument")?;
-            let signal = _args.get(1).and_then(|v| v.as_str()).unwrap_or("TERM");
+            let _signal = _args.get(1).and_then(|v| v.as_str()).unwrap_or("TERM");
             
             #[cfg(unix)]
             {
@@ -648,5 +651,467 @@ fn handle_shell_api(method: &str, args: &Value) -> Result<Value, String> {
         }
 
         _ => Err(format!("Unknown shell method: {}", method)),
+    }
+}
+
+/// 计算机信息相关 API
+fn handle_computer_api(method: &str, _args: &Value) -> Result<Value, String> {
+    match method {
+        "getCpuInfo" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
+                use std::mem;
+                unsafe {
+                    let mut si: SYSTEM_INFO = mem::zeroed();
+                    GetSystemInfo(&mut si);
+                    let num_processors = si.dwNumberOfProcessors;
+                    let processor_architecture = si.Anonymous.Anonymous.wProcessorArchitecture;
+                    
+                    let arch = match processor_architecture {
+                        0 => "x86",
+                        5 => "arm",
+                        6 => "ia64",
+                        9 => "amd64",
+                        12 => "arm64",
+                        _ => "unknown",
+                    };
+                    
+                    Ok(json!({
+                        "manufacturer": "",
+                        "model": "",
+                        "cores": num_processors,
+                        "logicalProcessors": num_processors,
+                        "architecture": arch
+                    }))
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err("getCpuInfo not implemented on this platform".to_string())
+            }
+        }
+
+        "getMemoryInfo" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+                use std::mem;
+                unsafe {
+                    let mut msx: MEMORYSTATUSEX = mem::zeroed();
+                    msx.dwLength = mem::size_of::<MEMORYSTATUSEX>() as u32;
+                    
+                    if GlobalMemoryStatusEx(&mut msx) != 0 {
+                        Ok(json!({
+                            "total": msx.ullTotalPhys,
+                            "available": msx.ullAvailPhys,
+                            "used": msx.ullTotalPhys - msx.ullAvailPhys
+                        }))
+                    } else {
+                        Err("Failed to get memory info".to_string())
+                    }
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err("getMemoryInfo not implemented on this platform".to_string())
+            }
+        }
+
+        "getOsInfo" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::System::SystemInformation::GetVersion;
+                let version = unsafe { GetVersion() };
+                let major = (version & 0xFF) as u32;
+                let minor = ((version >> 8) & 0xFF) as u32;
+                let build = ((version >> 16) & 0xFFFF) as u32;
+                
+                let name = match major {
+                    10 => "Windows 10/11",
+                    6 if minor == 3 => "Windows 8.1",
+                    6 if minor == 2 => "Windows 8",
+                    6 if minor == 1 => "Windows 7",
+                    6 if minor == 0 => "Windows Vista",
+                    5 if minor == 1 => "Windows XP",
+                    _ => "Windows",
+                };
+                
+                Ok(json!({
+                    "name": name,
+                    "version": format!("{}.{}.{}", major, minor, build),
+                    "platform": "windows",
+                    "arch": std::env::consts::ARCH
+                }))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Ok(json!({
+                    "name": "",
+                    "version": "",
+                    "platform": std::env::consts::OS,
+                    "arch": std::env::consts::ARCH
+                }))
+            }
+        }
+
+        "getDisplays" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::Graphics::Gdi::{EnumDisplayDevicesW, DISPLAY_DEVICEW, GetDC, GetDeviceCaps, HORZRES, VERTRES};
+                use std::mem;
+                use std::ptr;
+
+                let mut displays = Vec::new();
+                unsafe {
+                     let mut device: DISPLAY_DEVICEW = mem::zeroed();
+                     device.cb = mem::size_of::<DISPLAY_DEVICEW>() as u32;
+                     let mut i = 0;
+ 
+                     while EnumDisplayDevicesW(ptr::null(), i, &mut device, 0) != 0 {
+                         if (device.StateFlags & 0x00000004) != 0 {
+                             let _device_name = String::from_utf16(&device.DeviceName)
+                                 .map(|s| s.trim_end_matches('\0').to_string())
+                                 .unwrap_or_default();
+                            
+                             let hdc = GetDC(0 as isize);
+                             let width = GetDeviceCaps(hdc, HORZRES) as i32;
+                             let height = GetDeviceCaps(hdc, VERTRES) as i32;
+                             
+                             let device_string = String::from_utf16(&device.DeviceName)
+                                 .map(|s| s.trim_end_matches('\0').to_string())
+                                 .unwrap_or_default();
+
+                            displays.push(json!({
+                                "id": i.to_string(),
+                                "name": device_string,
+                                "width": width,
+                                "height": height,
+                                "scaleFactor": 1,
+                                "isPrimary": i == 0
+                            }));
+                        }
+                        i += 1;
+                    }
+                }
+
+                Ok(json!(displays))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err("getDisplays not implemented on this platform".to_string())
+            }
+        }
+
+        "getMousePosition" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                use windows_sys::Win32::Foundation::POINT;
+                use std::mem;
+
+                unsafe {
+                    let mut point: POINT = mem::zeroed();
+                    if GetCursorPos(&mut point) != 0 {
+                        Ok(json!({
+                            "x": point.x,
+                            "y": point.y
+                        }))
+                    } else {
+                        Err("Failed to get mouse position".to_string())
+                    }
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err("getMousePosition not implemented on this platform".to_string())
+            }
+        }
+
+        "getKeyboardLayout" => {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardLayoutNameW;
+                use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+                use std::mem;
+
+                unsafe {
+                    let mut buffer: [u16; 9] = mem::zeroed();
+                    if GetKeyboardLayoutNameW(buffer.as_mut_ptr()) != 0 {
+                        let layout = String::from_utf16(&buffer)
+                            .map(|s| s.trim_end_matches('\0').to_string())
+                            .unwrap_or_default();
+                        Ok(json!(layout))
+                    } else {
+                        Ok(json!(""))
+                    }
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Err("getKeyboardLayout not implemented on this platform".to_string())
+            }
+        }
+
+        _ => Err(format!("Unknown computer method: {}", method)),
+    }
+}
+
+/// HTTP 请求选项
+#[derive(serde::Deserialize, Default)]
+#[allow(dead_code)]
+struct RequestOptions {
+    method: Option<String>,
+    headers: Option<std::collections::HashMap<String, String>>,
+    body: Option<String>,
+    timeout: Option<u64>,
+}
+
+/// HTTP 相关 API
+fn handle_http_api(method: &str, args: &Value) -> Result<Value, String> {
+    match method {
+        "get" => {
+            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
+            let options = args.get(1).cloned();
+            
+            let mut opts: RequestOptions = Default::default();
+            if let Some(opts_val) = options {
+                opts = serde_json::from_value(opts_val).unwrap_or_default();
+            }
+            
+            let mut req = reqwest::blocking::Client::new().get(url);
+            if let Some(headers) = &opts.headers {
+                for (key, value) in headers {
+                    req = req.header(key, value);
+                }
+            }
+            
+            send_http_request(req)
+        }
+
+        "post" => {
+            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
+            let data = args.get(1);
+            let options = args.get(2).cloned();
+            
+            let mut opts: RequestOptions = Default::default();
+            if let Some(opts_val) = options {
+                opts = serde_json::from_value(opts_val).unwrap_or_default();
+            }
+            
+            let mut req = reqwest::blocking::Client::new().post(url);
+            if let Some(headers) = &opts.headers {
+                for (key, value) in headers {
+                    req = req.header(key, value);
+                }
+            }
+            
+            if let Some(data_val) = data {
+                if let Some(data_str) = data_val.as_str() {
+                    req = req.body(data_str.to_string());
+                } else {
+                    if let Ok(json_str) = serde_json::to_string(data_val) {
+                        req = req.body(json_str);
+                    }
+                }
+            }
+            
+            send_http_request(req)
+        }
+
+        "put" => {
+            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
+            let data = args.get(1);
+            let options = args.get(2).cloned();
+            
+            let mut opts: RequestOptions = Default::default();
+            if let Some(opts_val) = options {
+                opts = serde_json::from_value(opts_val).unwrap_or_default();
+            }
+            
+            let mut req = reqwest::blocking::Client::new().put(url);
+            if let Some(headers) = &opts.headers {
+                for (key, value) in headers {
+                    req = req.header(key, value);
+                }
+            }
+            
+            if let Some(data_val) = data {
+                if let Some(data_str) = data_val.as_str() {
+                    req = req.body(data_str.to_string());
+                } else {
+                    if let Ok(json_str) = serde_json::to_string(data_val) {
+                        req = req.body(json_str);
+                    }
+                }
+            }
+            
+            send_http_request(req)
+        }
+
+        "delete" => {
+            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
+            let options = args.get(1).cloned();
+            
+            let mut opts: RequestOptions = Default::default();
+            if let Some(opts_val) = options {
+                opts = serde_json::from_value(opts_val).unwrap_or_default();
+            }
+            
+            let mut req = reqwest::blocking::Client::new().delete(url);
+            if let Some(headers) = &opts.headers {
+                for (key, value) in headers {
+                    req = req.header(key, value);
+                }
+            }
+            
+            send_http_request(req)
+        }
+
+        "request" => {
+            let options = args.get(0).ok_or("Missing options argument")?;
+            let opts: RequestOptions = serde_json::from_value(options.clone())
+                .map_err(|e| e.to_string())?;
+            
+            let method = opts.method.as_deref().unwrap_or("GET");
+            let url = options.get("url").and_then(|v| v.as_str())
+                .ok_or("Missing url in options")?;
+            
+            let client = reqwest::blocking::Client::new();
+            let mut req = match method.to_ascii_lowercase().as_str() {
+                 "get" => client.get(url),
+                 "post" => client.post(url),
+                 "put" => client.put(url),
+                 "delete" => client.delete(url),
+                 "head" => client.head(url),
+                 "patch" => client.patch(url),
+                 _ => client.get(url),
+             };
+            
+            if let Some(headers) = &opts.headers {
+                for (key, value) in headers {
+                    req = req.header(key, value);
+                }
+            }
+            
+            if let Some(body) = &opts.body {
+                req = req.body(body.clone());
+            }
+            
+            send_http_request(req)
+        }
+
+        _ => Err(format!("Unknown http method: {}", method)),
+    }
+}
+
+/// 发送 HTTP 请求并返回响应
+fn send_http_request(req: reqwest::blocking::RequestBuilder) -> Result<Value, String> {
+    match req.send() {
+        Ok(resp) => {
+            let status = resp.status();
+            let status_code = status.as_u16();
+            let mut headers = serde_json::Map::new();
+            for (name, value) in resp.headers() {
+                headers.insert(name.to_string(), json!(value.to_str().unwrap_or("")));
+            }
+            let body = resp.text()
+                .map_err(|e| e.to_string())?;
+            
+            Ok(json!({
+                "statusCode": status_code,
+                "headers": headers,
+                "body": body,
+                "ok": status.is_success()
+            }))
+        }
+        Err(e) => Err(e.to_string()),
+     }
+ }
+
+/// 存储相关 API
+fn handle_storage_api(method: &str, args: &Value) -> Result<Value, String> {
+    use std::collections::HashMap;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn get_storage_path() -> Result<PathBuf, String> {
+        let config = app_config::get_config();
+        let app_data = dirs::data_dir().ok_or("Failed to get app data directory")?;
+        let storage_dir = app_data.join(&config.identifier);
+        if !storage_dir.exists() {
+            fs::create_dir_all(&storage_dir).map_err(|e| e.to_string())?;
+        }
+        Ok(storage_dir.join("storage.json"))
+    }
+
+    fn load_storage() -> Result<HashMap<String, Value>, String> {
+        let path = get_storage_path()?;
+        if !path.exists() {
+            return Ok(HashMap::new());
+        }
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        if content.is_empty() {
+            return Ok(HashMap::new());
+        }
+        serde_json::from_str(&content).map_err(|e| e.to_string())
+    }
+
+    fn save_storage(storage: &HashMap<String, Value>) -> Result<(), String> {
+        let path = get_storage_path()?;
+        let content = serde_json::to_string_pretty(storage).map_err(|e| e.to_string())?;
+        fs::write(&path, content).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    match method {
+        "setData" => {
+            let key = args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            let value = args.get(1).ok_or("Missing value argument")?;
+            
+            let mut storage = load_storage()?;
+            storage.insert(key.to_string(), value.clone());
+            save_storage(&storage)?;
+            Ok(Value::Null)
+        }
+
+        "getData" => {
+            let key = args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            
+            let storage = load_storage()?;
+            Ok(storage.get(key).cloned().unwrap_or(Value::Null))
+        }
+
+        "getKeys" => {
+            let storage = load_storage()?;
+            let keys: Vec<String> = storage.keys().cloned().collect();
+            Ok(json!(keys))
+        }
+
+        "has" => {
+            let key = args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            
+            let storage = load_storage()?;
+            Ok(json!(storage.contains_key(key)))
+        }
+
+        "removeData" => {
+            let key = args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            
+            let mut storage = load_storage()?;
+            storage.remove(key);
+            save_storage(&storage)?;
+            Ok(Value::Null)
+        }
+
+        "clear" => {
+            let path = get_storage_path()?;
+            if path.exists() {
+                fs::remove_file(&path).map_err(|e| e.to_string())?;
+            }
+            Ok(Value::Null)
+        }
+
+        _ => Err(format!("Unknown storage method: {}", method)),
     }
 }

@@ -153,13 +153,27 @@
 | *(全局事件总线，未开始)* | | | | | |
 | | | | | | |
 | **13. storage** | | | | | |
-| *(未开始)* | | | | | |
+| `storage.setData(key, value)` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
+| `storage.getData(key)` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
+| `storage.getKeys()` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
+| `storage.has(key)` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
+| `storage.removeData(key)` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
+| `storage.clear()` | ✅ | ✅ | ✅ | 完成 | 原生 fs + JSON 序列化 |
 | | | | | | |
 | **14. computer** | | | | | |
-| *(未开始)* | | | | | |
+| `computer.getCpuInfo()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
+| `computer.getMemoryInfo()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
+| `computer.getOsInfo()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
+| `computer.getDisplays()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
+| `computer.getMousePosition()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
+| `computer.getKeyboardLayout()` | ✅ (Windows) | ✅ | ✅ | 完成 (Windows) | windows-sys |
 | | | | | | |
 | **15. http** | | | | | |
-| *(未开始)* | | | | | |
+| `http.get(url, options?)` | ✅ | ✅ | ✅ | 完成 | reqwest (blocking) |
+| `http.post(url, data, options?)` | ✅ | ✅ | ✅ | 完成 | reqwest (blocking) |
+| `http.put(url, data, options?)` | ✅ | ✅ | ✅ | 完成 | reqwest (blocking) |
+| `http.delete(url, options?)` | ✅ | ✅ | ✅ | 完成 | reqwest (blocking) |
+| `http.request(options)` | ✅ | ✅ | ✅ | 完成 | reqwest (blocking) |
 | | | | | | |
 | **16. shortcut** | | | | | |
 | *(未开始)* | | | | | |
@@ -171,12 +185,15 @@
 | 项目 | 数量 |
 |------|------|
 | **总计 API** | 140+ |
-| **已完成** | 33 |
+| **已完成** | 33 + 17 = 50 |
 | **框架已有(Tao/Wry)，API 未封装** | ~45 |
-| **未完成/未实现** | ~60+ |
+| **未完成/未实现** | ~45+ |
 
 **已完成模块：**
 - ✅ app - 13/24 完成
 - ✅ fs - 12/13 完成 (仅 fs.watch 未完成)
 - ✅ process - 10/11 完成 (仅 process.on('exit') 未完成)
 - ✅ notification - 1/2 完成
+- ✅ computer - 6/6 完成 (Windows 平台)
+- ✅ http - 5/5 完成
+- ✅ storage - 6/6 完成
