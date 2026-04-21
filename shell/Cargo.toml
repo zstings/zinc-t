@@ -18,7 +18,7 @@ fs2 = "0.4"
 notify-rust = "4"
 open = "5.1"
 trash = "5.2"
-ureq = "2.8"
+ureq = { version = "2.8", default-features = false, features = ["native-tls"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
@@ -29,7 +29,7 @@ nix = "0.27"
 nix = "0.27"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.48", features = ["Win32_System_SystemInformation", "Win32_UI_Shell", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_System_Diagnostics_ProcessSnapshotting", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Diagnostics_Debug"] }
+windows-sys = { version = "0.48", features = ["Win32_UI_Shell", "Win32_System_Threading", "Win32_System_ProcessStatus", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse"] }
 
 [profile.release]
 opt-level = "z"

@@ -660,29 +660,38 @@ fn handle_computer_api(method: &str, _args: &Value) -> Result<Value, String> {
         "getCpuInfo" => {
             #[cfg(target_os = "windows")]
             {
-                use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
                 use std::mem;
+                
+                #[repr(C)]
+                struct SystemInfo {
+                    _processor_architecture: u16,
+                    _reserved: u16,
+                    _page_size: u32,
+                    _minimum_application_address: *mut u8,
+                    _maximum_application_address: *mut u8,
+                    _active_processor_mask: usize,
+                    number_of_processors: u32,
+                    _processor_type: u32,
+                    _allocation_granularity: u32,
+                    _processor_level: u16,
+                    _processor_revision: u16,
+                }
+                
+                extern "system" {
+                    fn GetSystemInfo(lpSystemInfo: *mut SystemInfo);
+                }
+                
                 unsafe {
-                    let mut si: SYSTEM_INFO = mem::zeroed();
+                    let mut si: SystemInfo = mem::zeroed();
                     GetSystemInfo(&mut si);
-                    let num_processors = si.dwNumberOfProcessors;
-                    let processor_architecture = si.Anonymous.Anonymous.wProcessorArchitecture;
-                    
-                    let arch = match processor_architecture {
-                        0 => "x86",
-                        5 => "arm",
-                        6 => "ia64",
-                        9 => "amd64",
-                        12 => "arm64",
-                        _ => "unknown",
-                    };
+                    let num_processors = si.number_of_processors;
                     
                     Ok(json!({
                         "manufacturer": "",
                         "model": "",
                         "cores": num_processors,
                         "logicalProcessors": num_processors,
-                        "architecture": arch
+                        "architecture": std::env::consts::ARCH
                     }))
                 }
             }
@@ -695,17 +704,34 @@ fn handle_computer_api(method: &str, _args: &Value) -> Result<Value, String> {
         "getMemoryInfo" => {
             #[cfg(target_os = "windows")]
             {
-                use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
                 use std::mem;
+                
+                #[repr(C)]
+                struct MemoryStatusEx {
+                    dw_length: u32,
+                    memory_load: u32,
+                    ull_total_phys: u64,
+                    ull_avail_phys: u64,
+                    ull_total_page_file: u64,
+                    ull_avail_page_file: u64,
+                    ull_total_virtual: u64,
+                    ull_avail_virtual: u64,
+                    ull_avail_extended_virtual: u64,
+                }
+                
+                extern "system" {
+                    fn GlobalMemoryStatusEx(lpBuffer: *mut MemoryStatusEx) -> i32;
+                }
+                
                 unsafe {
-                    let mut msx: MEMORYSTATUSEX = mem::zeroed();
-                    msx.dwLength = mem::size_of::<MEMORYSTATUSEX>() as u32;
+                    let mut msx: MemoryStatusEx = mem::zeroed();
+                    msx.dw_length = mem::size_of::<MemoryStatusEx>() as u32;
                     
                     if GlobalMemoryStatusEx(&mut msx) != 0 {
                         Ok(json!({
-                            "total": msx.ullTotalPhys,
-                            "available": msx.ullAvailPhys,
-                            "used": msx.ullTotalPhys - msx.ullAvailPhys
+                            "total": msx.ull_total_phys,
+                            "available": msx.ull_avail_phys,
+                            "used": msx.ull_total_phys - msx.ull_avail_phys
                         }))
                     } else {
                         Err("Failed to get memory info".to_string())
@@ -721,7 +747,10 @@ fn handle_computer_api(method: &str, _args: &Value) -> Result<Value, String> {
         "getOsInfo" => {
             #[cfg(target_os = "windows")]
             {
-                use windows_sys::Win32::System::SystemInformation::GetVersion;
+                extern "system" {
+                    fn GetVersion() -> u32;
+                }
+                
                 let version = unsafe { GetVersion() };
                 let major = (version & 0xFF) as u32;
                 let minor = ((version >> 8) & 0xFF) as u32;
