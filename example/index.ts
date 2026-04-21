@@ -302,6 +302,56 @@ document.getElementById("btn-fs-copy")?.addEventListener("click", async () => {
   }
 });
 
+// 16. 删除文件测试
+document.getElementById("btn-fs-delete")?.addEventListener("click", async () => {
+  clear();
+  log("=== 删除文件测试 ===");
+
+  const fileName = "test_demo/test.txt";
+
+  try {
+    const existsBefore = await fs.exists(fileName);
+    log(`删除前文件存在: ${existsBefore}`);
+
+    if (existsBefore) {
+      await fs.deleteFile(fileName);
+      log(`✅ 已删除文件: ${fileName}`);
+
+      const existsAfter = await fs.exists(fileName);
+      log(`删除后文件存在: ${existsAfter}`);
+    } else {
+      log(`⚠️ 文件不存在: ${fileName}`);
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
+// 17. 删除目录测试
+document.getElementById("btn-fs-rmdir")?.addEventListener("click", async () => {
+  clear();
+  log("=== 删除目录测试 ===");
+
+  const dirName = "test_demo";
+
+  try {
+    const existsBefore = await fs.exists(dirName);
+    log(`删除前目录存在: ${existsBefore}`);
+
+    if (existsBefore) {
+      await fs.removeDir(dirName);
+      log(`✅ 已删除目录: ${dirName} (递归删除所有内容)`);
+
+      const existsAfter = await fs.exists(dirName);
+      log(`删除后目录存在: ${existsAfter}`);
+    } else {
+      log(`⚠️ 目录不存在: ${dirName}`);
+    }
+  } catch (error: any) {
+    log(`❌ 错误: ${error.message}`);
+  }
+});
+
 // 页面加载完成后记录
 log("页面已加载");
 log(
