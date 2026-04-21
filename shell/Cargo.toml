@@ -19,9 +19,14 @@ notify-rust = "4"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+libc = "0.2"
+nix = "0.27"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+nix = "0.27"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.48", features = ["Win32_System_SystemInformation", "Win32_UI_Shell"] }
+windows-sys = { version = "0.48", features = ["Win32_System_SystemInformation", "Win32_UI_Shell", "Win32_System_Threading", "Win32_System_ProcessStatus"] }
 
 [profile.release]
 opt-level = "z"

@@ -15,7 +15,6 @@ pub fn handle_api_call(method: &str, args: &Value) -> Result<Value, String> {
         "window" => handle_window_api(method_name, args),
         "fs" => handle_fs_api(method_name, args),
         "app" => handle_app_api(method_name, args),
-        "os" => handle_os_api(method_name, args),
         "process" => handle_process_api(method_name, args),
         "dialog" => handle_dialog_api(method_name, args),
         "clipboard" => handle_clipboard_api(method_name, args),
@@ -261,9 +260,24 @@ fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
     }
 }
 
-/// 操作系统相关 API
-fn handle_os_api(method: &str, _args: &Value) -> Result<Value, String> {
+/// 进程相关 API
+fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
     match method {
+        // 基础进程信息
+        "getPid" => Ok(json!(std::process::id())),
+        "getArgv" => {
+            let args: Vec<String> = std::env::args().collect();
+            Ok(json!(args))
+        }
+        "getEnv" => {
+            let key = _args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            let value = std::env::var(key).ok();
+            Ok(json!(value))
+        }
+        "getPlatform" => Ok(json!(std::env::consts::OS)),
+        "getArch" => Ok(json!(std::env::consts::ARCH)),
+
+        // 操作系统信息（原 os 模块）
         "homeDir" => {
             if let Ok(home) = std::env::var("HOME") {
                 Ok(json!(home))
@@ -283,25 +297,8 @@ fn handle_os_api(method: &str, _args: &Value) -> Result<Value, String> {
                 Ok(json!(""))
             }
         }
-        _ => Err(format!("Unknown os method: {}", method)),
-    }
-}
 
-/// 进程相关 API
-fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
-    match method {
-        "getPid" => Ok(json!(std::process::id())),
-        "getArgv" => {
-            let args: Vec<String> = std::env::args().collect();
-            Ok(json!(args))
-        }
-        "getEnv" => {
-            let key = _args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
-            let value = std::env::var(key).ok();
-            Ok(json!(value))
-        }
-        "getPlatform" => Ok(json!(std::env::consts::OS)),
-        "getArch" => Ok(json!(std::env::consts::ARCH)),
+        // 工作目录和环境变量
         "cwd" => {
             if let Ok(cwd) = std::env::current_dir() {
                 Ok(json!(cwd.to_str().unwrap_or("")))
@@ -316,20 +313,170 @@ fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
             }
             Ok(Value::Object(env))
         }
+
+        // 进程控制
         "exit" => {
-            std::process::exit(0);
+            let code = _args.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            std::process::exit(code);
         }
+
+        // 性能信息
         "getUptime" => {
-            Err("该功能实现待定".to_string())
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let uptime = SystemTime::now().duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            Ok(json!(uptime))
         }
         "getCpuUsage" => {
-            Err("该功能实现待定".to_string())
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
+                use windows_sys::Win32::Foundation::FILETIME;
+                use std::mem;
+
+                unsafe {
+                    let mut creation_time: FILETIME = mem::zeroed();
+                    let mut exit_time: FILETIME = mem::zeroed();
+                    let mut kernel_time: FILETIME = mem::zeroed();
+                    let mut user_time: FILETIME = mem::zeroed();
+
+                    if GetProcessTimes(GetCurrentProcess(), &mut creation_time, &mut exit_time, &mut kernel_time, &mut user_time) != 0 {
+                        let kernel = ((kernel_time.dwHighDateTime as u64) << 32) | (kernel_time.dwLowDateTime as u64);
+                        let user = ((user_time.dwHighDateTime as u64) << 32) | (user_time.dwLowDateTime as u64);
+                        
+                        let kernel_seconds = (kernel as f64) / 1e7;
+                        let user_seconds = (user as f64) / 1e7;
+
+                        Ok(json!({
+                            "user": user_seconds,
+                            "system": kernel_seconds
+                        }))
+                    } else {
+                        Err("Failed to get process times".to_string())
+                    }
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                use std::fs::read_to_string;
+                #[cfg(target_os = "linux")]
+                {
+                    if let Ok(stat) = read_to_string("/proc/self/stat") {
+                        let parts: Vec<&str> = stat.split_whitespace().collect();
+                        if parts.len() >= 15 {
+                            let utime = parts[13].parse::<f64>().unwrap_or(0.0) / unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
+                            let stime = parts[14].parse::<f64>().unwrap_or(0.0) / unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
+                            Ok(json!({
+                                "user": utime,
+                                "system": stime
+                            }))
+                        } else {
+                            Err("Failed to parse /proc/self/stat".to_string())
+                        }
+                    } else {
+                        Err("Failed to read /proc/self/stat".to_string())
+                    }
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    Err("getCpuUsage not implemented on this platform".to_string())
+                }
+            }
         }
         "getMemoryInfo" => {
-            Err("该功能实现待定".to_string())
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
+                use windows_sys::Win32::System::Threading::GetCurrentProcess;
+                use std::mem;
+
+                unsafe {
+                    let mut pmc: PROCESS_MEMORY_COUNTERS = mem::zeroed();
+                    let pmc_size = mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+                    
+                    if GetProcessMemoryInfo(GetCurrentProcess(), &mut pmc, pmc_size) != 0 {
+                        Ok(json!({
+                            "rss": pmc.WorkingSetSize as u64,
+                            "heapTotal": pmc.PagefileUsage as u64,
+                            "heapUsed": 0,
+                            "external": 0
+                        }))
+                    } else {
+                        Err("Failed to get process memory info".to_string())
+                    }
+                }
+            }
+            #[cfg(target_os = "linux")]
+            {
+                use std::fs::read_to_string;
+                let mut rss = 0;
+                if let Ok(status) = read_to_string("/proc/self/status") {
+                    for line in status.lines() {
+                        if line.starts_with("VmRSS:") {
+                            let parts: Vec<&str> = line.split_whitespace().collect();
+                            if parts.len() >= 2 {
+                                rss = parts[1].parse::<u64>().unwrap_or(0) * 1024;
+                            }
+                        }
+                    }
+                }
+                Ok(json!({
+                    "rss": rss,
+                    "heapTotal": 0,
+                    "heapUsed": 0,
+                    "external": 0
+                }))
+            }
+            #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+            {
+                Err("getMemoryInfo not implemented on this platform".to_string())
+            }
         }
         "kill" => {
-            Err("该功能实现待定".to_string())
+            let pid = _args.get(0).and_then(|v| v.as_i64()).ok_or("Missing pid argument")?;
+            let signal = _args.get(1).and_then(|v| v.as_str()).unwrap_or("TERM");
+            
+            #[cfg(unix)]
+            {
+                use nix::sys::signal;
+                use nix::unistd::Pid;
+                let sig = match signal {
+                    "TERM" => signal::SIGTERM,
+                    "KILL" => signal::SIGKILL,
+                    "INT" => signal::SIGINT,
+                    "HUP" => signal::SIGHUP,
+                    _ => signal::SIGTERM,
+                };
+                let res = signal::kill(Pid::from_raw(pid as i32), Some(sig));
+                match res {
+                    Ok(_) => Ok(Value::Null),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
+            #[cfg(windows)]
+            {
+                use windows_sys::Win32::System::Threading::{OpenProcess, TerminateProcess};
+                use windows_sys::Win32::System::Threading::PROCESS_TERMINATE;
+
+                unsafe {
+                    let handle = OpenProcess(PROCESS_TERMINATE, 0, pid as u32);
+                    if handle != 0 {
+                        let result = TerminateProcess(handle, 1);
+                        if result != 0 {
+                            Ok(Value::Null)
+                        } else {
+                            Err("Failed to terminate process".to_string())
+                        }
+                    } else {
+                        Err("Failed to open process".to_string())
+                    }
+                }
+            }
+            #[cfg(not(any(unix, windows)))]
+            {
+                Err("kill not implemented on this platform".to_string())
+            }
         }
         _ => Err(format!("Unknown process method: {}", method)),
     }

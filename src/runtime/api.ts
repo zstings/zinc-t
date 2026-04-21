@@ -244,38 +244,6 @@ export const app: AppAPI = {
 };
 
 /**
- * 操作系统相关 API
- */
-export const os = {
-  /**
-   * 获取操作系统平台
-   * @returns 'windows' | 'macos' | 'linux' | etc.
-   */
-  platform: (): Promise<string> => vokexCall('os.platform'),
-
-  /**
-   * 获取系统架构
-   * @returns 'x86_64' | 'aarch64' | etc.
-   */
-  arch: (): Promise<string> => vokexCall('os.arch'),
-
-  /**
-   * 获取用户主目录
-   */
-  homeDir: (): Promise<string> => vokexCall('os.homeDir'),
-
-  /**
-   * 获取临时目录
-   */
-  tempDir: (): Promise<string> => vokexCall('os.tempDir'),
-
-  /**
-   * 获取主机名
-   */
-  hostname: (): Promise<string> => vokexCall('os.hostname'),
-};
-
-/**
  * CpuUsage 进程 CPU 使用率
  */
 export interface CpuUsage {
@@ -313,6 +281,12 @@ export interface ProcessAPI {
   getCpuUsage: () => Promise<CpuUsage>;
   /** 获取进程内存信息 */
   getMemoryInfo: () => Promise<MemoryInfo>;
+  /** 获取用户主目录 */
+  homeDir: () => Promise<string>;
+  /** 获取临时目录 */
+  tempDir: () => Promise<string>;
+  /** 获取主机名 */
+  hostname: () => Promise<string>;
   /** 获取当前工作目录 */
   cwd: () => Promise<string>;
   /** 获取所有环境变量 */
@@ -368,6 +342,21 @@ export const process: ProcessAPI = {
    * 获取进程内存信息
    */
   getMemoryInfo: (): Promise<MemoryInfo> => vokexCall('process.getMemoryInfo'),
+
+  /**
+   * 获取用户主目录
+   */
+  homeDir: (): Promise<string> => vokexCall('process.homeDir'),
+
+  /**
+   * 获取临时目录
+   */
+  tempDir: (): Promise<string> => vokexCall('process.tempDir'),
+
+  /**
+   * 获取主机名
+   */
+  hostname: (): Promise<string> => vokexCall('process.hostname'),
 
   /**
    * 获取当前工作目录
