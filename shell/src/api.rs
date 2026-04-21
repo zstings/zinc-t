@@ -31,9 +31,113 @@ fn handle_window_api(_method: &str, _args: &Value) -> Result<Value, String> {
 }
 
 /// 文件系统相关 API
-fn handle_fs_api(_method: &str, _args: &Value) -> Result<Value, String> {
-    // TODO: Implement fs API
-    Ok(Value::Null)
+fn handle_fs_api(method: &str, args: &Value) -> Result<Value, String> {
+    match method {
+        "readFile" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            std::fs::read_to_string(path)
+                .map(|content| json!(content))
+                .map_err(|e| e.to_string())
+        }
+        "readFileBinary" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            std::fs::read(path)
+                .map(|bytes| serde_json::to_value(bytes).unwrap_or(Value::Null))
+                .map_err(|e| e.to_string())
+        }
+        "writeFile" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            let data = args.get(1).and_then(|v| v.as_str()).ok_or("Missing data argument")?;
+            std::fs::write(path, data)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "appendFile" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            let data = args.get(1).and_then(|v| v.as_str()).ok_or("Missing data argument")?;
+            use std::io::Write;
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .and_then(|mut file| file.write_all(data.as_bytes()))
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "deleteFile" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            std::fs::remove_file(path)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "readDir" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            let mut entries = Vec::new();
+            let read_result = std::fs::read_dir(path);
+            match read_result {
+                Ok(dir_entries) => {
+                    for entry in dir_entries {
+                        if let Ok(entry) = entry {
+                            let file_name = entry.file_name().into_string().unwrap_or_default();
+                            let path = entry.path().to_string_lossy().to_string();
+                            let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+                            entries.push(json!({
+                                "name": file_name,
+                                "path": path,
+                                "isDir": is_dir
+                            }));
+                        }
+                    }
+                    Ok(json!(entries))
+                }
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "createDir" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            std::fs::create_dir_all(path)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "removeDir" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            std::fs::remove_dir_all(path)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "stat" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+            Ok(json!({
+                "isFile": metadata.is_file(),
+                "isDir": metadata.is_dir(),
+                "size": metadata.len(),
+                "modified": metadata.modified().map(|m| m.elapsed().ok().map(|e| e.as_secs())).ok().flatten()
+            }))
+        }
+        "exists" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            Ok(json!(std::path::Path::new(path).exists()))
+        }
+        "copyFile" => {
+            let source = args.get(0).and_then(|v| v.as_str()).ok_or("Missing source argument")?;
+            let destination = args.get(1).and_then(|v| v.as_str()).ok_or("Missing destination argument")?;
+            std::fs::copy(source, destination)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "moveFile" => {
+            let source = args.get(0).and_then(|v| v.as_str()).ok_or("Missing source argument")?;
+            let destination = args.get(1).and_then(|v| v.as_str()).ok_or("Missing destination argument")?;
+            std::fs::rename(source, destination)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+        "watch" => {
+            Err("fs.watch is not implemented yet".to_string())
+        }
+        _ => Err(format!("Unknown fs method: {}", method)),
+    }
 }
 
 /// 应用相关 API
@@ -63,7 +167,7 @@ fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
         // 路径相关
         "getAppPath" => {
             std::env::current_exe()
-                .map(|p| json!(p.to_str().unwrap_or("")))
+                .map(|p| json!(p.parent().and_then(|parent| parent.to_str()).unwrap_or("")))
                 .map_err(|e| e.to_string())
         }
         "getPath" => {
