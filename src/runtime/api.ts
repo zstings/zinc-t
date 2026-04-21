@@ -75,6 +75,8 @@ export interface FsAPI {
   copyFile: (source: string, destination: string) => Promise<void>;
   /** 移动/重命名文件 */
   moveFile: (source: string, destination: string) => Promise<void>;
+  /** 监听文件/目录变化 */
+  watch: (path: string) => any;
 }
 
 /**
@@ -116,6 +118,9 @@ export const fs: FsAPI = {
 
   /** 移动/重命名文件 */
   moveFile: (source: string, destination: string): Promise<void> => vokexCall('fs.moveFile', [source, destination]),
+
+  /** 监听文件/目录变化 */
+  watch: (path: string): any => vokexCall('fs.watch', [path]),
 };
 
 /**

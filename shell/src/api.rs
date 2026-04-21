@@ -134,7 +134,7 @@ fn handle_fs_api(method: &str, args: &Value) -> Result<Value, String> {
                 .map_err(|e| e.to_string())
         }
         "watch" => {
-            Err("fs.watch is not implemented yet".to_string())
+            Err("该功能实现待定".to_string())
         }
         _ => Err(format!("Unknown fs method: {}", method)),
     }
