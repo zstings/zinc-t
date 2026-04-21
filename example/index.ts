@@ -1,4 +1,4 @@
-import { app } from "vokex";
+import { app, notification } from "vokex";
 
 const output = document.getElementById("output") as HTMLDivElement;
 
@@ -114,7 +114,33 @@ document.getElementById("btn-events")?.addEventListener("click", async () => {
   log("提示: 关闭窗口时会触发 before-quit 事件");
 });
 
-// 7. 重启应用
+// 7. 发送系统通知
+document.getElementById("btn-notification")?.addEventListener("click", async () => {
+  clear();
+  log("=== 系统通知测试 ===");
+  
+  try {
+    log("1. 调用 notification.isSupported()...");
+    const supported = await notification.isSupported();
+    log(`2. 通知支持: ${supported ? "✅ 是" : "❌ 否"}`);
+    
+    if (supported) {
+      log("3. 调用 notification.show()...");
+      await notification.show({
+        title: "Vokex 通知",
+        body: "这是一条来自 Vokex 应用的系统通知！",
+      });
+      log("4. ✅ 通知已发送");
+    } else {
+      log("❌ 当前系统不支持通知");
+    }
+  } catch (error: any) {
+    log(`错误: ${error.message || error}`);
+    console.error("Notification error:", error);
+  }
+});
+
+// 8. 重启应用
 document.getElementById("btn-restart")?.addEventListener("click", async () => {
   clear();
   log("正在重启应用...");
@@ -125,7 +151,7 @@ document.getElementById("btn-restart")?.addEventListener("click", async () => {
   }
 });
 
-// 8. 退出应用
+// 9. 退出应用
 document.getElementById("btn-quit")?.addEventListener("click", async () => {
   clear();
   log("正在退出应用...");
@@ -139,5 +165,5 @@ document.getElementById("btn-quit")?.addEventListener("click", async () => {
 // 页面加载完成后记录
 log("页面已加载");
 log(
-  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.setProxy(config), app.on(event, callback)",
+  "可用 API: app.quit(), app.exit(code), app.restart(), app.getAppPath(), app.getPath(name), app.getVersion(), app.getName(), app.setName(name), app.getLocale(), app.setDockBadge(text), app.requestSingleInstanceLock(), app.setProxy(config), app.on(event, callback), notification.show(options), notification.isSupported()",
 );

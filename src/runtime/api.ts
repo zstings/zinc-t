@@ -213,10 +213,48 @@ export const dialog = {
 };
 
 /**
-   * 剪贴板相关 API
-   */
+ * 剪贴板相关 API
+ */
 export const clipboard = {
   // TODO: 实现 clipboard API
+};
+
+/**
+ * NotificationOptions 接口
+ */
+export interface NotificationOptions {
+  /** 通知标题（必填） */
+  title: string;
+  /** 通知内容 */
+  body?: string;
+  /** 图标路径 */
+  icon?: string;
+  /** 是否静音 */
+  silent?: boolean;
+}
+
+/**
+ * 通知相关 API
+ */
+export const notification = {
+  show: (options: NotificationOptions): Promise<void> => {
+    return vokexCall('notification.show', [options]);
+  },
+
+  /**
+   * 检查系统是否支持通知
+   * @returns true 表示支持通知
+   * @example
+   * ```ts
+   * const supported = await notification.isSupported();
+   * if (supported) {
+   *   await notification.show({ title: 'Hello', body: 'World' });
+   * }
+   * ```
+   */
+  isSupported: (): Promise<boolean> => {
+    return vokexCall('notification.isSupported');
+  },
 };
 
 /**

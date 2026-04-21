@@ -3,4 +3,5 @@
  */
 
 // 运行时 API
-export { os, app, process, fs, dialog, clipboard, events, call } from "./runtime/api";
+export { os, app, process, fs, dialog, clipboard, notification, events, call } from "./runtime/api";
+export type { NotificationOptions } from "./runtime/api";

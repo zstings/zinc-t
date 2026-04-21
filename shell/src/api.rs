@@ -19,6 +19,7 @@ pub fn handle_api_call(method: &str, args: &Value) -> Result<Value, String> {
         "process" => handle_process_api(method_name, args),
         "dialog" => handle_dialog_api(method_name, args),
         "clipboard" => handle_clipboard_api(method_name, args),
+        "notification" => handle_notification_api(method_name, args),
         _ => Err(format!("Unknown namespace: {}", namespace)),
     }
 }
@@ -219,4 +220,54 @@ fn handle_dialog_api(_method: &str, _args: &Value) -> Result<Value, String> {
 fn handle_clipboard_api(_method: &str, _args: &Value) -> Result<Value, String> {
     // TODO: Implement clipboard API
     Ok(Value::Null)
+}
+
+/// 通知选项
+#[derive(serde::Deserialize)]
+struct NotificationOptions {
+    title: String,
+    body: Option<String>,
+    icon: Option<String>,
+    #[allow(dead_code)]
+    silent: Option<bool>,
+}
+
+/// 通知相关 API
+fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> {
+    eprintln!("[DEBUG] notification API called: method={}, args={}", method, args);
+    match method {
+        "show" => {
+            // args 是数组，第一个元素是 options 对象
+            let options = args.get(0).ok_or("Missing notification options")?;
+            
+            let options: NotificationOptions = serde_json::from_value(options.clone())
+                .map_err(|e| format!("Invalid notification options: {}", e))?;
+
+            if options.title.is_empty() {
+                return Err("Notification title is required".to_string());
+            }
+
+            let mut notification = notify_rust::Notification::new();
+            notification.summary(&options.title);
+            
+            if let Some(body) = options.body {
+                notification.body(&body);
+            }
+
+            if let Some(icon_path) = options.icon {
+                notification.icon(&icon_path);
+            }
+
+            match notification.show() {
+                Ok(_handle) => Ok(Value::Null),
+                Err(e) => Err(format!("Failed to show notification: {}", e)),
+            }
+        }
+        "isSupported" => {
+            eprintln!("[DEBUG] isSupported called");
+            // notify-rust 支持 Windows、macOS 和 Linux
+            Ok(json!(true))
+        }
+        _ => Err(format!("Unknown notification method: {}", method)),
+    }
 }

@@ -15,6 +15,7 @@ hostname = "0.4"
 dirs = "5"
 sys-locale = "0.3"
 fs2 = "0.4"
+notify-rust = "4"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
