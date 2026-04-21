@@ -116,10 +116,6 @@ fn main() {
 
     app_config::init_app_config();
 
-    // 在 Windows 上设置 AppUserModelID，使通知显示正确的应用标识
-    #[cfg(target_os = "windows")]
-    api::set_windows_app_user_model_id();
-
     let app_config = app_config::get_config().clone();
 
     
@@ -204,6 +200,11 @@ fn main() {
         ))
         .build(&event_loop)
         .unwrap();
+
+    // 在 Windows 上设置 AppUserModelID，使通知显示正确的应用标识
+    // 必须在窗口创建之后调用
+    #[cfg(target_os = "windows")]
+    api::set_windows_app_user_model_id();
 
     let init_script = r#"
     window.__VOKEX__ = {

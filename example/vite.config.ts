@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     vokexPlugin({
       name: "Vokex Demo",
-      identifier: "com.vokex.vokex-demo",
+      identifier: "com.vokex.vokex",
       version: version,
       window: {
         title: "Vokex App Demo",
