@@ -1256,7 +1256,16 @@ fs.watch(path: string): Watcher
 用系统默认浏览器打开 URL。
 
 ```typescript
-shell.openExternal(url: string): void
+shell.openExternal(url: string): Promise<void>
+```
+
+**示例**
+
+```typescript
+import { shell } from 'vokex'
+
+// 打开网站
+await shell.openExternal('https://github.com')
 ```
 
 `Niva+NL`
@@ -1266,7 +1275,19 @@ shell.openExternal(url: string): void
 用系统默认程序打开文件/目录。
 
 ```typescript
-shell.openPath(path: string): void
+shell.openPath(path: string): Promise<void>
+```
+
+**示例**
+
+```typescript
+import { shell } from 'vokex'
+
+// 用资源管理器打开目录
+await shell.openPath('C:\\Users')
+
+// 用默认程序打开 PDF 文件
+await shell.openPath('./document.pdf')
 ```
 
 `Niva+NL`
@@ -1279,6 +1300,43 @@ shell.openPath(path: string): void
 shell.execCommand(command: string, options?: ExecOptions): Promise<ShellResult>
 ```
 
+**参数**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `command` | `string` | 要执行的命令字符串 |
+| `options` | `ExecOptions` | 执行选项（可选） |
+
+**返回值**
+
+返回 `ShellResult` 对象，包含：
+- `code`: 退出码
+- `stdout`: 标准输出
+- `stderr`: 标准错误
+- `success`: 是否成功
+
+**示例**
+
+```typescript
+import { shell } from 'vokex'
+
+// 简单命令
+const result = await shell.execCommand('dir')
+console.log(result.stdout)
+
+// 带选项
+const result = await shell.execCommand('npm install', {
+  cwd: './my-project',
+  env: { NODE_ENV: 'production' }
+})
+
+if (result.success) {
+  console.log('安装完成')
+} else {
+  console.error('安装失败:', result.stderr)
+}
+```
+
 `Niva+NL`
 
 #### `shell.trashItem(path)`
@@ -1286,10 +1344,19 @@ shell.execCommand(command: string, options?: ExecOptions): Promise<ShellResult>
 将文件移到回收站。
 
 ```typescript
-shell.trashItem(path: string): void
+shell.trashItem(path: string): Promise<void>
 ```
 
-`Electron` — Niva 和 Neutralinojs 均未实现
+**示例**
+
+```typescript
+import { shell } from 'vokex'
+
+// 将临时文件移到回收站
+await shell.trashItem('./temp.log')
+```
+
+`Niva+NL`
 
 ---
 
@@ -1915,23 +1982,23 @@ interface Watcher {
 }
 ```
 
-### ShellResult
-
-```typescript
-interface ShellResult {
-  stdout: string
-  stderr: string
-  code: number
-}
-```
-
 ### ExecOptions
 
 ```typescript
 interface ExecOptions {
   cwd?: string
   env?: Record<string, string>
-  timeout?: number
+}
+```
+
+### ShellResult
+
+```typescript
+interface ShellResult {
+  code: number
+  stdout: string
+  stderr: string
+  success: boolean
 }
 ```
 

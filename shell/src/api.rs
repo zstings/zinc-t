@@ -19,6 +19,7 @@ pub fn handle_api_call(method: &str, args: &Value) -> Result<Value, String> {
         "dialog" => handle_dialog_api(method_name, args),
         "clipboard" => handle_clipboard_api(method_name, args),
         "notification" => handle_notification_api(method_name, args),
+        "shell" => handle_shell_api(method_name, args),
         _ => Err(format!("Unknown namespace: {}", namespace)),
     }
 }
@@ -553,5 +554,99 @@ fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> 
                 .map_err(|e| format!("Notification Error: {}. (Please check if your OS notification service is enabled)", e))
         }
         _ => Err(format!("Unknown notification method: {}", method)),
+    }
+}
+
+/// ExecOptions 执行命令选项
+#[derive(serde::Deserialize)]
+struct ExecOptions {
+    cwd: Option<String>,
+    env: Option<std::collections::HashMap<String, String>>,
+}
+
+/// shell 相关 API
+fn handle_shell_api(method: &str, args: &Value) -> Result<Value, String> {
+    match method {
+        "openExternal" => {
+            let url = args.get(0).and_then(|v| v.as_str()).ok_or("Missing url argument")?;
+            open::that(url)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+
+        "openPath" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            open::that(path)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+
+        "execCommand" => {
+            let command = args.get(0).and_then(|v| v.as_str()).ok_or("Missing command argument")?;
+            let options = args.get(1).cloned();
+            
+            let exec_options: Option<ExecOptions> = match options {
+                Some(opts) => serde_json::from_value(opts).ok(),
+                None => None,
+            };
+
+            #[cfg(target_os = "windows")]
+            let output = {
+                use std::process::Command;
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/C").arg(command);
+                if let Some(ref opts) = exec_options {
+                    if let Some(cwd) = &opts.cwd {
+                        cmd.current_dir(cwd);
+                    }
+                    if let Some(env) = &opts.env {
+                        cmd.envs(env);
+                    }
+                }
+                cmd.output()
+            };
+
+            #[cfg(not(target_os = "windows"))]
+            let output = {
+                use std::process::Command;
+                let mut cmd = Command::new("/bin/sh");
+                cmd.arg("-c").arg(command);
+                if let Some(ref opts) = exec_options {
+                    if let Some(cwd) = &opts.cwd {
+                        cmd.current_dir(cwd);
+                    }
+                    if let Some(env) = &opts.env {
+                        cmd.envs(env);
+                    }
+                }
+                cmd.output()
+            };
+
+            match output {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    let code = output.status.code().unwrap_or(-1);
+                    let success = output.status.success();
+
+                    Ok(json!({
+                        "code": code,
+                        "stdout": stdout,
+                        "stderr": stderr,
+                        "success": success
+                    }))
+                }
+                Err(e) => Err(e.to_string()),
+            }
+        }
+
+        "trashItem" => {
+            let path = args.get(0).and_then(|v| v.as_str()).ok_or("Missing path argument")?;
+            trash::delete(path)
+                .map(|_| Value::Null)
+                .map_err(|e| e.to_string())
+        }
+
+        _ => Err(format!("Unknown shell method: {}", method)),
     }
 }
