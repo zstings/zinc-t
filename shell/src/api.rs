@@ -232,6 +232,21 @@ struct NotificationOptions {
     silent: Option<bool>,
 }
 
+/// 在 Windows 上设置 AppUserModelID，使通知显示正确的应用标识
+#[cfg(target_os = "windows")]
+pub fn set_windows_app_user_model_id() {
+    use windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+    
+    let config = app_config::get_config();
+    // 使用应用标识符作为 AppUserModelID（格式：公司名.产品名）
+    let app_id = format!("{}", config.identifier);
+    let app_id_wide: Vec<u16> = app_id.encode_utf16().chain(std::iter::once(0)).collect();
+    
+    unsafe {
+        let _ = SetCurrentProcessExplicitAppUserModelID(app_id_wide.as_ptr());
+    }
+}
+
 /// 通知相关 API
 fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> {
     match method {
@@ -248,10 +263,13 @@ fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> 
                 return Err("Notification title cannot be empty".to_string());
             }
 
+            let config = app_config::get_config();
+            let app_id = format!("{}", config.identifier);
+            
             let mut notification = notify_rust::Notification::new();
             notification
                 .summary(&options.title)
-                .appname(&app_config::get_config().name);
+                .appname(&app_id);
 
             if let Some(ref body) = options.body {
                 notification.body(body);
