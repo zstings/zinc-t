@@ -276,13 +276,98 @@ export const os = {
 };
 
 /**
+ * CpuUsage 进程 CPU 使用率
+ */
+export interface CpuUsage {
+  user: number;
+  system: number;
+}
+
+/**
+ * MemoryInfo 进程内存信息
+ */
+export interface MemoryInfo {
+  rss: number;
+  heapTotal: number;
+  heapUsed: number;
+  external: number;
+}
+
+/**
+ * 进程 API 接口
+ */
+export interface ProcessAPI {
+  /** 获取当前进程 ID */
+  getPid: () => Promise<number>;
+  /** 获取命令行参数 */
+  getArgv: () => Promise<string[]>;
+  /** 获取环境变量 */
+  getEnv: (key: string) => Promise<string | undefined>;
+  /** 获取操作系统平台 */
+  getPlatform: () => Promise<string>;
+  /** 获取系统架构 */
+  getArch: () => Promise<string>;
+  /** 获取进程运行时长 */
+  getUptime: () => Promise<number>;
+  /** 获取进程 CPU 使用率 */
+  getCpuUsage: () => Promise<CpuUsage>;
+  /** 获取进程内存信息 */
+  getMemoryInfo: () => Promise<MemoryInfo>;
+  /** 获取当前工作目录 */
+  cwd: () => Promise<string>;
+  /** 获取所有环境变量 */
+  env: () => Promise<Record<string, string>>;
+  /** 退出当前进程 */
+  exit: (code?: number) => Promise<void>;
+  /** 终止指定进程 */
+  kill: (pid: number, signal?: string) => Promise<void>;
+}
+
+/**
  * 进程相关 API
  */
-export const process = {
+export const process: ProcessAPI = {
   /**
    * 获取当前进程 ID
    */
-  pid: (): Promise<number> => vokexCall('process.pid'),
+  getPid: (): Promise<number> => vokexCall('process.getPid'),
+
+  /**
+   * 获取命令行参数
+   */
+  getArgv: (): Promise<string[]> => vokexCall('process.getArgv'),
+
+  /**
+   * 获取环境变量
+   */
+  getEnv: (key: string): Promise<string | undefined> => vokexCall('process.getEnv', [key]),
+
+  /**
+   * 获取操作系统平台
+   * @returns 'windows' | 'macos' | 'linux'
+   */
+  getPlatform: (): Promise<string> => vokexCall('process.getPlatform'),
+
+  /**
+   * 获取系统架构
+   * @returns 'x64' | 'arm64'
+   */
+  getArch: (): Promise<string> => vokexCall('process.getArch'),
+
+  /**
+   * 获取进程运行时长
+   */
+  getUptime: (): Promise<number> => vokexCall('process.getUptime'),
+
+  /**
+   * 获取进程 CPU 使用率
+   */
+  getCpuUsage: (): Promise<CpuUsage> => vokexCall('process.getCpuUsage'),
+
+  /**
+   * 获取进程内存信息
+   */
+  getMemoryInfo: (): Promise<MemoryInfo> => vokexCall('process.getMemoryInfo'),
 
   /**
    * 获取当前工作目录
@@ -290,14 +375,19 @@ export const process = {
   cwd: (): Promise<string> => vokexCall('process.cwd'),
 
   /**
-   * 获取环境变量
+   * 获取所有环境变量
    */
   env: (): Promise<Record<string, string>> => vokexCall('process.env'),
 
   /**
-   * 退出应用
+   * 退出当前进程
    */
-  exit: (): Promise<void> => vokexCall('process.exit'),
+  exit: (code: number = 0): Promise<void> => vokexCall('process.exit', [code]),
+
+  /**
+   * 终止指定进程
+   */
+  kill: (pid: number, signal?: string): Promise<void> => vokexCall('process.kill', [pid, signal]),
 };
 
 /**

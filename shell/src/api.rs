@@ -264,8 +264,6 @@ fn handle_app_api(method: &str, args: &Value) -> Result<Value, String> {
 /// 操作系统相关 API
 fn handle_os_api(method: &str, _args: &Value) -> Result<Value, String> {
     match method {
-        "platform" => Ok(json!(std::env::consts::OS)),
-        "arch" => Ok(json!(std::env::consts::ARCH)),
         "homeDir" => {
             if let Ok(home) = std::env::var("HOME") {
                 Ok(json!(home))
@@ -292,7 +290,18 @@ fn handle_os_api(method: &str, _args: &Value) -> Result<Value, String> {
 /// 进程相关 API
 fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
     match method {
-        "pid" => Ok(json!(std::process::id())),
+        "getPid" => Ok(json!(std::process::id())),
+        "getArgv" => {
+            let args: Vec<String> = std::env::args().collect();
+            Ok(json!(args))
+        }
+        "getEnv" => {
+            let key = _args.get(0).and_then(|v| v.as_str()).ok_or("Missing key argument")?;
+            let value = std::env::var(key).ok();
+            Ok(json!(value))
+        }
+        "getPlatform" => Ok(json!(std::env::consts::OS)),
+        "getArch" => Ok(json!(std::env::consts::ARCH)),
         "cwd" => {
             if let Ok(cwd) = std::env::current_dir() {
                 Ok(json!(cwd.to_str().unwrap_or("")))
@@ -309,6 +318,18 @@ fn handle_process_api(method: &str, _args: &Value) -> Result<Value, String> {
         }
         "exit" => {
             std::process::exit(0);
+        }
+        "getUptime" => {
+            Err("该功能实现待定".to_string())
+        }
+        "getCpuUsage" => {
+            Err("该功能实现待定".to_string())
+        }
+        "getMemoryInfo" => {
+            Err("该功能实现待定".to_string())
+        }
+        "kill" => {
+            Err("该功能实现待定".to_string())
         }
         _ => Err(format!("Unknown process method: {}", method)),
     }
