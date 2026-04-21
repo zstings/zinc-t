@@ -240,21 +240,6 @@ export const notification = {
   show: (options: NotificationOptions): Promise<void> => {
     return vokexCall('notification.show', [options]);
   },
-
-  /**
-   * 检查系统是否支持通知
-   * @returns true 表示支持通知
-   * @example
-   * ```ts
-   * const supported = await notification.isSupported();
-   * if (supported) {
-   *   await notification.show({ title: 'Hello', body: 'World' });
-   * }
-   * ```
-   */
-  isSupported: (): Promise<boolean> => {
-    return vokexCall('notification.isSupported');
-  },
 };
 
 /**

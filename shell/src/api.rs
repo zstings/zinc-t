@@ -249,7 +249,9 @@ fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> 
             }
 
             let mut notification = notify_rust::Notification::new();
-            notification.summary(&options.title);
+            notification
+                .summary(&options.title)
+                .appname(&app_config::get_config().name);
 
             if let Some(ref body) = options.body {
                 notification.body(body);
@@ -262,10 +264,7 @@ fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> 
             notification
                 .show()
                 .map(|_| Value::Null)
-                .map_err(|e| format!("Failed to show notification: {}", e))
-        }
-        "isSupported" => {
-            Ok(json!(true))
+                .map_err(|e| format!("Notification Error: {}. (Please check if your OS notification service is enabled)", e))
         }
         _ => Err(format!("Unknown notification method: {}", method)),
     }

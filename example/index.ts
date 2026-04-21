@@ -120,20 +120,12 @@ document.getElementById("btn-notification")?.addEventListener("click", async () 
   log("=== 系统通知测试 ===");
   
   try {
-    log("1. 调用 notification.isSupported()...");
-    const supported = await notification.isSupported();
-    log(`2. 通知支持: ${supported ? "✅ 是" : "❌ 否"}`);
-    
-    if (supported) {
-      log("3. 调用 notification.show()...");
-      await notification.show({
-        title: "Vokex 通知",
-        body: "这是一条来自 Vokex 应用的系统通知！",
-      });
-      log("4. ✅ 通知已发送");
-    } else {
-      log("❌ 当前系统不支持通知");
-    }
+    log("正在发送通知...");
+    await notification.show({
+      title: "Vokex 通知",
+      body: "这是一条来自 Vokex 应用的系统通知！",
+    });
+    log("✅ 通知已发送");
   } catch (error: any) {
     log(`错误: ${error.message || error}`);
     console.error("Notification error:", error);
