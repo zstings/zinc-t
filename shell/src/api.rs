@@ -234,38 +234,37 @@ struct NotificationOptions {
 
 /// 通知相关 API
 fn handle_notification_api(method: &str, args: &Value) -> Result<Value, String> {
-    eprintln!("[DEBUG] notification API called: method={}, args={}", method, args);
     match method {
         "show" => {
-            // args 是数组，第一个元素是 options 对象
-            let options = args.get(0).ok_or("Missing notification options")?;
-            
+            let options = args
+                .as_array()
+                .and_then(|arr| arr.first())
+                .ok_or("Missing notification options")?;
+
             let options: NotificationOptions = serde_json::from_value(options.clone())
                 .map_err(|e| format!("Invalid notification options: {}", e))?;
 
             if options.title.is_empty() {
-                return Err("Notification title is required".to_string());
+                return Err("Notification title cannot be empty".to_string());
             }
 
             let mut notification = notify_rust::Notification::new();
             notification.summary(&options.title);
-            
-            if let Some(body) = options.body {
-                notification.body(&body);
+
+            if let Some(ref body) = options.body {
+                notification.body(body);
             }
 
-            if let Some(icon_path) = options.icon {
-                notification.icon(&icon_path);
+            if let Some(ref icon_path) = options.icon {
+                notification.icon(icon_path);
             }
 
-            match notification.show() {
-                Ok(_handle) => Ok(Value::Null),
-                Err(e) => Err(format!("Failed to show notification: {}", e)),
-            }
+            notification
+                .show()
+                .map(|_| Value::Null)
+                .map_err(|e| format!("Failed to show notification: {}", e))
         }
         "isSupported" => {
-            eprintln!("[DEBUG] isSupported called");
-            // notify-rust 支持 Windows、macOS 和 Linux
             Ok(json!(true))
         }
         _ => Err(format!("Unknown notification method: {}", method)),
